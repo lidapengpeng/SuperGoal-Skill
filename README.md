@@ -1,6 +1,6 @@
 <div align="center">
 
-# SuperGoal
+# ✨ SuperGoal
 
 **An upgraded `/goal` for Codex CLI — it cannot call work "done" until the evidence is on disk.**
 
@@ -10,6 +10,8 @@
 ![10 agents](https://img.shields.io/badge/agents-10-f97316?style=flat-square)
 
 `$supergoal <goal>` &nbsp;→&nbsp; recon → contract → design debate → evidence loop → adversarial review → verified close
+
+<sub>🌐 English · <a href="README.zh-CN.md">中文</a></sub>
 
 </div>
 
@@ -22,11 +24,11 @@ iterates in falsifiable Design–Act–Observe–Reason cycles, and a separate
 reviewer agent plus a mechanical Stop hook block the session from ending
 while any claim lacks its logged proof.
 
-**Use it for** debugging, refactoring, risky features, services and sites,
+✅ **Use it for** debugging, refactoring, risky features, services and sites,
 crawlers and data pipelines, model training, research reproduction.
-**Skip it for** one-line answers — it will refuse them anyway.
+⏭️ **Skip it for** one-line answers — it will refuse them anyway.
 
-## Why not just `/goal`?
+## 🤔 Why not just `/goal`?
 
 | | plain `/goal` | SuperGoal |
 | --- | --- | --- |
@@ -37,7 +39,7 @@ crawlers and data pipelines, model training, research reproduction.
 | "Done" | the model judges "achieved" | Stop hook cross-checks every checked box against logged verdicts |
 | Memory | starts from zero | lessons, plans, and evidence persist in `.dapeng/` files |
 
-## How a mission flows
+## 🧭 How a mission flows
 
 ```mermaid
 flowchart TD
@@ -69,7 +71,7 @@ fresh-eyes inspection signs off. High-risk missions must survive at least
 two debate rounds. The tier is decided once, logged, and announced with its
 research cost before anything is spent.
 
-## What a session looks like
+## 💬 What a session looks like
 
 ```text
 You:  $supergoal speed up our test suite, CI is painfully slow
@@ -94,7 +96,7 @@ It:   [/goal created · plan gate GO · baseline 14m02s quoted from CI log]
 
 A precise request skips the questions: recon, one Agree message, "go".
 
-## Install
+## 📦 Install
 
 ```bash
 # global (all projects)
@@ -117,7 +119,7 @@ Setup runs automatically on first invocation and installs the rest — but it
 `config/*.toml` and the two model keys in `config/config.toml.snippet`, then
 recopy into `<repo>/.codex/`. Nothing else references a model name.
 
-## What lives on disk
+## 🗂️ What lives on disk
 
 | File | Role |
 | --- | --- |
@@ -132,7 +134,7 @@ Every mission is resumable from these files alone — kill the session at any
 point and the router infers where to continue. Chat history is never the
 state.
 
-## Repository map
+## 🗺️ Repository map
 
 | Path | What it is |
 | --- | --- |
@@ -142,7 +144,7 @@ state.
 | `hooks/` | Stop + SubagentStop audits, each with an assert-based self-test |
 | `docs/field-validation.md` | the nine measurements the first real missions must take |
 
-## FAQ
+## ❓ FAQ
 
 **Why does it ask questions? Other tools just start.**
 Guessing an ambiguous success criterion is how work gets marked done without
@@ -162,7 +164,7 @@ Both supported — the hook command needs the right shell variant
 ([`references/codex.md`](references/codex.md)); repos without git use an
 absolute hook path.
 
-## Honest limits
+## ⚠️ Honest limits
 
 - The Stop hook checks ledger consistency, not scientific validity — the
   reviewer gates and quoted-evidence rules exist for that.
