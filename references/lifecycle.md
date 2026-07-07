@@ -48,7 +48,7 @@ Park is a separate transition, not a classification: it applies when the
 1. Archive the completed root files (see layout below) - including the cluster
    files (`DRAFT_BRIEF.md`, `RESEARCH.md`, `DESIGN.md`, `DEBATE.md`) when the
    finished mission was standard/high-risk. Delete
-   `.dapeng/tmp/.write-audit-baseline` as part of archiving: a baseline taken
+   `.supergoal/tmp/.write-audit-baseline` as part of archiving: a baseline taken
    before the move would mass-false-block the next mission's first
    write-capable agent.
 2. Create fresh root files: `BRIEF.md`, `PLAN.md`, `JOURNAL.md`, and
@@ -87,7 +87,7 @@ Park is a separate transition, not a classification: it applies when the
 
 ## Backlog
 
-Record the idea in `.dapeng/BACKLOG.md` and touch nothing else - no `PLAN.md`
+Record the idea in `.supergoal/BACKLOG.md` and touch nothing else - no `PLAN.md`
 edit, no checkbox. `PLAN.md` is committed executable work that the Stop hook
 enforces via `- [ ]`; the backlog is deliberately invisible to the hook so
 casual ideas never block a session end. Promote exactly one backlog item into a
@@ -117,13 +117,13 @@ When urgent work arrives before the current mission closes:
 
 1. Mark every remaining unchecked subgoal `- [!] parked: superseded by <slug>`
    so the Stop hook stops counting it as open work (the hook ignores `- [!]`).
-2. Archive the root files to `.dapeng/archive/<YYYYMMDD>-<slug>-PARKED/`.
+2. Archive the root files to `.supergoal/archive/<YYYYMMDD>-<slug>-PARKED/`.
 3. Log a `## PARK <ISO-date>` entry in `JOURNAL.md` before it is archived:
    what was done, what remains, and the resume command.
 4. Run intake for the new mission.
 
 Resuming a parked mission restores its root files from the archive back to
-`.dapeng/`, reverts the `- [!] parked` markers to `- [ ]`, and continues the
+`.supergoal/`, reverts the `- [!] parked` markers to `- [ ]`, and continues the
 DAOR loop.
 
 ## Archive layout
@@ -132,7 +132,7 @@ One active mission per set of root files. Finished and parked missions move
 into per-mission archive folders:
 
 ```text
-.dapeng/
+.supergoal/
   BACKLOG.md
   PROJECT.md
   BRIEF.md          # active mission only

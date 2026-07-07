@@ -81,7 +81,7 @@ the work packet; ownership of every durable file is the table below.
 
 ## Durable state and the ID scheme
 
-Files added for the cluster, all under `.dapeng/`:
+Files added for the cluster, all under `.supergoal/`:
 
 | File | Content author | Disk writer | Purpose |
 | --- | --- | --- | --- |
@@ -102,7 +102,7 @@ IDs in its output. Nothing an agent produced exists for the cluster until it is
 in one of these files.
 
 At mission end these files archive with the mission
-(`.dapeng/archive/<YYYYMMDD>-<slug>/`), exactly like BRIEF/PLAN/JOURNAL; a
+(`.supergoal/archive/<YYYYMMDD>-<slug>/`), exactly like BRIEF/PLAN/JOURNAL; a
 pre-Agree parked mission archives `DRAFT_BRIEF.md` and whatever wave artifacts
 exist.
 
@@ -305,9 +305,9 @@ opinion of the design - a persuaded reviewer is a broken reviewer.
 - Snapshot the write-audit baseline immediately before EACH write-capable
   agent spawn (not once per wave): run
   `python <repo>/.codex/hooks/subagent_audit.py --snapshot`, which records a
-  content hash of every `.dapeng/` file (tmp/ and archive/ excluded) into
-  `.dapeng/tmp/.write-audit-baseline`. Between that snapshot and the agent's
-  turn end the scheduler writes nothing under `.dapeng/` - otherwise its own
+  content hash of every `.supergoal/` file (tmp/ and archive/ excluded) into
+  `.supergoal/tmp/.write-audit-baseline`. Between that snapshot and the agent's
+  turn end the scheduler writes nothing under `.supergoal/` - otherwise its own
   writes are attributed to the agent. In parallel mode the baseline is not
   advanced between overlapping turns. The `SubagentStop` hook performs the
   check on turn end; it is experimental (designed from Codex hook docs, not
@@ -533,14 +533,14 @@ reached Agree, the post-Agree park procedure in `references/lifecycle.md`
 does not apply (no PLAN.md or JOURNAL.md exists). Instead: prepend a dated
 `> PARKED: superseded by <slug>` note to `DRAFT_BRIEF.md`, archive
 `DRAFT_BRIEF.md` and whatever wave artifacts exist to
-`.dapeng/archive/<YYYYMMDD>-<slug>-PARKED/`, and delete the write-audit
+`.supergoal/archive/<YYYYMMDD>-<slug>-PARKED/`, and delete the write-audit
 baseline. Resuming restores the files and re-enters at the inferred wave.
 
 ## Migration (existing missions)
 
 A repo with an open pre-cluster mission either finishes it under the old
 semantics before the cluster is exercised, or adds this dated retro note to a
-new `.dapeng/DESIGN.md` - verbatim, because the Stop hook string-matches the
+new `.supergoal/DESIGN.md` - verbatim, because the Stop hook string-matches the
 marker:
 
 ```markdown
@@ -550,6 +550,6 @@ marker:
 - residual-risks: design was never cluster-reviewed (pre-cluster mission)
 ```
 
-A mission whose `.dapeng/` predates this playbook revision and still has an
+A mission whose `.supergoal/` predates this playbook revision and still has an
 `EVIDENCE.md` finishes with it; new missions write claims into
 `RESEARCH.md ## Claims`.

@@ -35,7 +35,7 @@ Design-Act-Observe-Reason 循环中迭代，并由独立 reviewer agent 加上
 | 设计 | 直接开始编码 | 高风险任务先经过研究 + 4 reviewer 设计辩论 |
 | 审查 | 同一上下文里的自审 | 独立 reviewer agent 攻击每个完成声明 |
 | “完成” | 模型判断“已达成” | Stop hook 对照日志 verdict 检查每个勾选项 |
-| 记忆 | 从零开始 | 经验、计划和证据持久化到 `.dapeng/` 文件 |
+| 记忆 | 从零开始 | 经验、计划和证据持久化到 `.supergoal/` 文件 |
 
 ## 🧭 一项任务如何流转
 
@@ -117,14 +117,16 @@ cp -R . ~/.codex/skills/supergoal/
 
 ## 🗂️ 磁盘上会保存什么
 
+SuperGoal 会把任务文件直接保存在当前项目的 `.supergoal/` 目录下。
+
 | 文件 | 作用 |
 | --- | --- |
-| `.dapeng/BRIEF.md` | 意图 — objective、边界、success criterion、assumptions |
-| `.dapeng/PLAN.md` | 声明 — Stop hook 可机器读取的子目标复选框 |
-| `.dapeng/JOURNAL.md` | 证据 — 只追加的循环账本，包含引用结果和 verdict |
-| `.dapeng/DRAFT_BRIEF / RESEARCH / DESIGN / DEBATE.md` | 设计护栏（仅标准/高风险任务） |
-| `.dapeng/EXPERIMENTS.md` | ML 运行账本 — PENDING 行会阻止完成 |
-| `.dapeng/PROJECT.md` · `BACKLOG.md` · `archive/` | 可积累的经验、暂存想法、已完成任务 |
+| `.supergoal/BRIEF.md` | 意图 — objective、边界、success criterion、assumptions |
+| `.supergoal/PLAN.md` | 声明 — Stop hook 可机器读取的子目标复选框 |
+| `.supergoal/JOURNAL.md` | 证据 — 只追加的循环账本，包含引用结果和 verdict |
+| `.supergoal/DRAFT_BRIEF / RESEARCH / DESIGN / DEBATE.md` | 设计护栏（仅标准/高风险任务） |
+| `.supergoal/EXPERIMENTS.md` | ML 运行账本 — PENDING 行会阻止完成 |
+| `.supergoal/PROJECT.md` · `BACKLOG.md` · `archive/` | 可积累的经验、暂存想法、已完成任务 |
 
 每项任务都能仅凭这些文件恢复——在任意时刻结束会话，router 都能推断
 从哪里继续。聊天历史永远不是状态。

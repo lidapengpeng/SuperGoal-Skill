@@ -135,7 +135,7 @@ If the goal is project-sized ("build me a recommendation system"), do not
 plan the whole project as one mission. Carve out the first bounded mission -
 the smallest outcome with a real success criterion that de-risks the rest -
 propose it at Agree, and file the remainder as entries in
-`.dapeng/BACKLOG.md` (`lifecycle.md`). One focused, falsifiable loop at a
+`.supergoal/BACKLOG.md` (`lifecycle.md`). One focused, falsifiable loop at a
 time.
 
 ## Assumption ledger
@@ -159,7 +159,7 @@ Rules:
   user corrects any line or says "go".
 - The ledger is copied into `BRIEF.md`; a wrong confirmed assumption is a
   shared decision, a wrong silent assumption is your bug. On standard/high-risk
-  (cluster) missions Clarify's outputs land in `.dapeng/DRAFT_BRIEF.md`
+  (cluster) missions Clarify's outputs land in `.supergoal/DRAFT_BRIEF.md`
   instead, which feeds Research and Design and is promoted to `BRIEF.md` at
   Agree (`references/super-agent-cluster.md`).
 

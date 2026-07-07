@@ -7,7 +7,7 @@ in the hook's docstring. Fails loudly if an agent's allow-list, the hash diff,
 or the payload parsing drifts.
 
 Regression anchor: the first revision diffed `git status --short`, which is
-blind when `.dapeng/` is untracked (the whole tree collapses to one `??`
+blind when `.supergoal/` is untracked (the whole tree collapses to one `??`
 line and content edits never change status output). The cross-write and
 content-edit cases below fail on any mechanism with that blind spot.
 """
@@ -20,6 +20,7 @@ from subagent_audit import (
     changed_paths,
     describe_scope,
     duplicate_ids,
+    find_supergoal,
     get_agent_type,
     read_baseline,
     scope_violations,
@@ -28,7 +29,7 @@ from subagent_audit import (
 )
 
 with tempfile.TemporaryDirectory() as _d:
-    dp = Path(_d) / ".dapeng"
+    dp = Path(_d) / ".supergoal"
     (dp / "tmp").mkdir(parents=True)
     (dp / "DESIGN.md").write_text("v1", encoding="utf-8")
     (dp / "tmp" / "scratch.txt").write_text("junk", encoding="utf-8")
@@ -70,7 +71,7 @@ with tempfile.TemporaryDirectory() as _d:
         "designer creating RESEARCH.md is a violation"
     assert scope_violations("researcher", base, cur) == ["DESIGN.md"], \
         "researcher is charged with the DESIGN.md change, not RESEARCH.md"
-    # worker owns no .dapeng document at all
+    # worker owns no .supergoal document at all
     assert scope_violations("worker", base, cur) == ["DESIGN.md", "RESEARCH.md"]
     assert scope_violations("researcher", {}, {"RESEARCH.md": "x"}) == []
     assert scope_violations("synthesizer", {}, {"DEBATE.md": "x"}) == []
@@ -113,11 +114,20 @@ assert get_agent_type({"nothing": 1}) is None
 
 # --- describe_scope --------------------------------------------------------
 assert "DESIGN.md" in describe_scope("designer")
-assert describe_scope("worker") == "only .dapeng/tmp/"
+assert describe_scope("worker") == "only .supergoal/tmp/"
 
 # --- roster sanity: matches the SubagentStop matcher in hooks.json --------
 assert set(WRITE_SCOPES) == {
     "researcher", "designer", "synthesizer", "worker"
 }, "write-capable roster must match the SubagentStop matcher"
+
+# --- find_supergoal -------------------------------------------------------
+with tempfile.TemporaryDirectory() as _d:
+    root = Path(_d)
+    sg = root / ".supergoal"
+    nested = root / "src" / "pkg"
+    sg.mkdir()
+    nested.mkdir(parents=True)
+    assert find_supergoal(nested) == sg, "walk up to the .supergoal state dir"
 
 print("subagent_audit self-check: all assertions passed")

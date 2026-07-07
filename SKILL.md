@@ -33,7 +33,7 @@ done.
 ## Language
 
 - Reply in the language the user writes in; think and plan in English.
-- All `.dapeng/` state files are written in English.
+- All `.supergoal/` state files are written in English.
 - Never translate code, identifiers, paths, commands, logs, or quoted errors.
 
 ## Reference playbooks
@@ -55,7 +55,7 @@ Deep detail lives next to this file; read each when its phase begins:
 Run Setup as an idempotent preflight on every `$supergoal` invocation, then
 route by durable state on disk, never by chat memory:
 
-- No `.dapeng/` directory: Setup, then Recon, then a tier check (below).
+- No `.supergoal/` directory: Setup, then Recon, then a tier check (below).
   Small missions run Clarify, Agree, Loop, Close in order. Standard/high-risk
   missions insert the design cluster (Research, Evidence, Design loop, Final
   design inspection) between Clarify and Agree
@@ -63,28 +63,30 @@ route by durable state on disk, never by chat memory:
   the plan gate runs at the start of Loop, a subgoal gate runs inside every
   cycle, and the final gate runs right before Close
   (`references/adversarial-review.md`).
-- `.dapeng/` exists and the mission is open (an incomplete phase remains):
+- `.supergoal/` exists and the mission is open (an incomplete phase remains):
   read `BRIEF.md`, `PLAN.md`, the tail of `JOURNAL.md` (and `EXPERIMENTS.md`
   if present); summarize the current state in at most 5 lines; resume at the
   first incomplete phase. If the user brings different work instead of the
   open mission, park or backlog it (`references/lifecycle.md`) - never
   silently mix two missions in one plan.
-- `.dapeng/` exists and the mission is closed (`PLAN.md` has a checked
+- `.supergoal/` exists and the mission is closed (`PLAN.md` has a checked
   `FINAL` backed by a `## FINAL GATE` section logging `review: PASS`): a
   clean completed state is an archive point, not a failure. Never auto-resume
   the loop. New work enters through Next.
-- User asks only for review or audit of prior SuperGoal work (`.dapeng/`
+- User asks only for review or audit of prior SuperGoal work (`.supergoal/`
   exists, open or closed): run the gate that matches what changed since the
-  last one - subgoal or final. A bare review request with no `.dapeng/`
+  last one - subgoal or final. A bare review request with no `.supergoal/`
   state has no contract to check it against; treat it as a new mission and
   start at Recon/Clarify instead.
 
 ## Setup preflight (every invocation)
 
-1. Create the skill's own state area immediately, without asking: `.dapeng/`,
-   `.dapeng/tmp/`, and `.dapeng/.gitignore` containing `tmp/`. Never edit the
-   repo's root `.gitignore`. Whether `.dapeng/` gets committed is the user's
-   choice; the skill never stages or commits it on its own.
+1. Create the mission state area immediately in the current project root
+   (git top-level when available, otherwise the invocation cwd), without
+   asking: `.supergoal/`, `.supergoal/tmp/`, and `.supergoal/.gitignore`
+   containing `tmp/`. Never edit the repo's root `.gitignore`. Whether
+   `.supergoal/` gets committed is the user's choice; the skill never stages
+   or commits it on its own.
 2. Install required Codex wiring immediately and idempotently (steps,
    platform selection, and the hook self-test in `references/codex.md`): the
    Stop hook, the experimental SubagentStop hook, all ten custom agents, and
@@ -159,7 +161,7 @@ objective with the fewest questions that actually matter:
   High-risk assumptions must be converted into questions; low-risk ones are
   listed at Agree for one-shot confirmation.
 - If the goal is project-sized, carve out the first bounded mission and file
-  the rest in `.dapeng/BACKLOG.md` (see `references/lifecycle.md`).
+  the rest in `.supergoal/BACKLOG.md` (see `references/lifecycle.md`).
 
 ## Cluster (standard/high-risk missions only)
 
@@ -168,7 +170,7 @@ design harness runs: `researcher` builds the source register and distills it
 into cited claims, `designer` drafts the design and its verification plan,
 four differentiated reviewers debate it (1-3 bounded rounds, `synthesizer`
 adjudicating any REVISE round), and `reviewer` (design mode) runs an
-independent final inspection. File-backed in `.dapeng/` (DRAFT_BRIEF,
+independent final inspection. File-backed in `.supergoal/` (DRAFT_BRIEF,
 RESEARCH, DESIGN, DEBATE), resumable at any wave boundary. Small missions
 skip straight from Clarify to Agree.
 
@@ -188,7 +190,7 @@ Standard/high-risk missions additionally present the final design summary
 `DESIGN.md`; the subgoal sketch is the accepted design's subgoal plan, not a
 fresh guess.
 
-On "go": write `.dapeng/PLAN.md` first, then `.dapeng/BRIEF.md` (template in
+On "go": write `.supergoal/PLAN.md` first, then `.supergoal/BRIEF.md` (template in
 `references/clarify.md`) - PLAN.md is mechanically re-derivable, so this
 order is crash-safe and the Stop hook treats BRIEF-without-PLAN as a broken
 state. For cluster missions this is a promotion, not a fresh write
@@ -239,14 +241,14 @@ repeat, one subgoal at a time, one cycle at a time:
    inconclusive; decide continue, pivot, or stop.
 
 After every cycle: append one 4-field entry (design/act/observe/reason) to
-`.dapeng/JOURNAL.md`; update PLAN.md checkboxes; checkpoint the green state
+`.supergoal/JOURNAL.md`; update PLAN.md checkboxes; checkpoint the green state
 (a small commit only if the user opted in at Agree, otherwise a journal
-note); ML runs also get a row in `.dapeng/EXPERIMENTS.md` (verdict PENDING
+note); ML runs also get a row in `.supergoal/EXPERIMENTS.md` (verdict PENDING
 until concluded with evidence).
 
 Mid-mission discoveries pass a scope test before they change anything: if
 the idea serves the current success criterion, add it as a new unchecked
-`SG` before `FINAL`; otherwise record it in `.dapeng/BACKLOG.md` and stay on
+`SG` before `FINAL`; otherwise record it in `.supergoal/BACKLOG.md` and stay on
 the current subgoal. An ever-growing PLAN never closes.
 
 Stop rules (any one pauses the loop for a user checkpoint): success criteria
@@ -291,13 +293,13 @@ an obstacle - the second stop passes, and pushing past the nudge is exactly
 the shallow-completion failure this skill exists to prevent.
 
 Then: delete scratch artifacts (temporary files belong only in
-`.dapeng/tmp/`); run `git status --short` and account for every changed or
-untracked file; run the lessons consolidation pass on `.dapeng/PROJECT.md` -
+`.supergoal/tmp/`); run `git status --short` and account for every changed or
+untracked file; run the lessons consolidation pass on `.supergoal/PROJECT.md` -
 mandatory whenever the mission had a refuted cycle, a hard-rule-4 event, or
 a reopen: each lands in or updates its root's `L-` entry per
 `references/lifecycle.md`, merged and superseded in place, never
 bare-appended. Distill standing facts too (eval commands, environment
-quirks, stable boundaries) and file spotted ideas in `.dapeng/BACKLOG.md` -
+quirks, stable boundaries) and file spotted ideas in `.supergoal/BACKLOG.md` -
 durable facts, not a transcript. Final report in the user's language: objective,
 subgoals completed with evidence, files changed, eval results, reviewer
 verdicts, cleanup performed, remaining risks, and which stop rule ended the
@@ -310,7 +312,7 @@ branch. Classify the new work before touching anything - every idea has
 exactly one home:
 
 - **New mission** (default): new outcome, success criterion, or budget.
-  Archive the completed root files to `.dapeng/archive/<YYYYMMDD>-<slug>/`,
+  Archive the completed root files to `.supergoal/archive/<YYYYMMDD>-<slug>/`,
   create fresh ones, and run a compact Clarify pre-filled from `PROJECT.md`:
   ask only the two mandatory pins; state everything else as confirmable
   inference. Prefer a fresh thread; `/goal clear` in-thread is the fallback
@@ -319,7 +321,7 @@ exactly one home:
   append `## REOPEN <ISO-date>` to `JOURNAL.md`, add a new unchecked `SG`
   before `FINAL`, and **uncheck `FINAL`** - the old gate does not cover new
   work.
-- **Backlog** (not ready to execute): record in `.dapeng/BACKLOG.md`, touch
+- **Backlog** (not ready to execute): record in `.supergoal/BACKLOG.md`, touch
   nothing else.
 
 If the current mission is still open but superseded by urgent work, park it:
@@ -354,30 +356,30 @@ root state, always.
 
 Active mission (one at a time; the Stop hook reads these):
 
-- `.dapeng/BRIEF.md` - intent: objective, boundaries, success criterion,
+- `.supergoal/BRIEF.md` - intent: objective, boundaries, success criterion,
   assumption ledger, evidence notes.
-- `.dapeng/PLAN.md` - claims: subgoal checklist (machine-read by the hook).
-- `.dapeng/JOURNAL.md` - evidence: append-only DAOR ledger, one entry per
+- `.supergoal/PLAN.md` - claims: subgoal checklist (machine-read by the hook).
+- `.supergoal/JOURNAL.md` - evidence: append-only DAOR ledger, one entry per
   cycle, plus review verdicts.
-- `.dapeng/EXPERIMENTS.md` - ML run ledger (only for tasks with runs).
-- `.dapeng/tmp/` - the only place for scratch files.
+- `.supergoal/EXPERIMENTS.md` - ML run ledger (only for tasks with runs).
+- `.supergoal/tmp/` - the only place for scratch files.
 
 Standard/high-risk missions add four cluster files (formats and writers in
 `references/super-agent-cluster.md`); they archive with the mission:
-`.dapeng/DRAFT_BRIEF.md` (pre-Agree contract, promoted to `BRIEF.md` on
-"go"), `.dapeng/RESEARCH.md` (source register + distilled claims),
-`.dapeng/DESIGN.md` (versioned drafts, verification plan, final inspection),
-`.dapeng/DEBATE.md` (round-by-round objections and synthesis).
+`.supergoal/DRAFT_BRIEF.md` (pre-Agree contract, promoted to `BRIEF.md` on
+"go"), `.supergoal/RESEARCH.md` (source register + distilled claims),
+`.supergoal/DESIGN.md` (versioned drafts, verification plan, final inspection),
+`.supergoal/DEBATE.md` (round-by-round objections and synthesis).
 
 Project layer (spans missions; created lazily on first use; the hook
 ignores these):
 
-- `.dapeng/BACKLOG.md` - uncommitted future ideas; no checkboxes, so the
+- `.supergoal/BACKLOG.md` - uncommitted future ideas; no checkboxes, so the
   hook never enforces them.
-- `.dapeng/PROJECT.md` - standing defaults plus clustered `L-` lessons
+- `.supergoal/PROJECT.md` - standing defaults plus clustered `L-` lessons
   (consolidation rules in `references/lifecycle.md`); read at new-mission
   intake and checked at each cycle's Design step.
-- `.dapeng/archive/<YYYYMMDD>-<slug>/` - completed or parked missions;
+- `.supergoal/archive/<YYYYMMDD>-<slug>/` - completed or parked missions;
   evidence history, not active work.
 
 ## Subagents, MCP, and sibling skills
@@ -385,7 +387,7 @@ ignores these):
 The main thread is always the scheduler and owns every decision, every gate
 verdict, and all writes to `BRIEF/PLAN/JOURNAL/EXPERIMENTS`. Subagents never
 spawn subagents (`max_depth = 1`), never message the user, and never read chat
-history - their work packet plus the named `.dapeng/` files are their whole
+history - their work packet plus the named `.supergoal/` files are their whole
 world.
 
 Which agents run is tier-gated: every mission uses `explorer` (read-only
@@ -399,7 +401,7 @@ collaboration contract are in `references/super-agent-cluster.md`.
 Write discipline: read-only agents (all reviewers, `explorer`) return bounded
 text the main thread records; the bulk-writer agents (`researcher`,
 `designer`, `synthesizer`) plus `worker` are `workspace-write`, each scoped
-to its own `.dapeng/` files plus `.dapeng/tmp/`. A `SubagentStop` hook
+to its own `.supergoal/` files plus `.supergoal/tmp/`. A `SubagentStop` hook
 enforces that scope mechanically where available (experimental; the
 scheduler's `--audit` run of the same script is the fallback -
 `references/super-agent-cluster.md`, Scheduler duties).

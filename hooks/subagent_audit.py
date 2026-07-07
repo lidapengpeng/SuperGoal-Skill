@@ -2,12 +2,12 @@
 """SuperGoal SubagentStop hook: enforce agent write scope (EXPERIMENTAL).
 
 Blocks a write-capable cluster agent's turn when it created, modified, or
-deleted a `.dapeng/` file outside its declared scope.
+deleted a `.supergoal/` file outside its declared scope.
 
 Mechanism: content-hash snapshots. Before spawning a write-capable wave the
 scheduler runs `python subagent_audit.py --snapshot` (from anywhere in the
-repo), which records a SHA-256 per `.dapeng/` file - `tmp/` excluded - into
-`.dapeng/tmp/.write-audit-baseline`. When the agent's turn ends this hook
+repo), which records a SHA-256 per `.supergoal/` file - `tmp/` excluded - into
+`.supergoal/tmp/.write-audit-baseline`. When the agent's turn ends this hook
 re-snapshots, diffs, and checks every changed path against the agent's
 allow-list. Out-of-scope -> {"decision": "block", ...} on stdout; a clean diff
 advances the baseline for the next write-capable agent.
@@ -16,13 +16,13 @@ command line: the scheduler's manual safety net, and the way to exercise the
 logic against a live install.
 
 Why hashes and not `git status --short` (the first revision): in the common
-layout `.dapeng/` is untracked, so git collapses the whole tree to one
-`?? .dapeng/` line - baseline and post-violation output are identical - and a
+layout `.supergoal/` is untracked, so git collapses the whole tree to one
+`?? .supergoal/` line - baseline and post-violation output are identical - and a
 content edit to an untracked file never changes status output at all. Hashing
 sees content, not tracking state, and needs no git.
 
-The three bulk-writer cluster agents each own exactly one `.dapeng/` document;
-`worker` owns none (its real writes are code files outside `.dapeng/`, which
+The three bulk-writer cluster agents each own exactly one `.supergoal/` document;
+`worker` owns none (its real writes are code files outside `.supergoal/`, which
 this hook does not audit - the packet's instruction scope and the completion
 gates cover those). Reviewers never match this hook; they are read-only.
 
@@ -38,8 +38,8 @@ import re
 import sys
 from pathlib import Path
 
-# `.dapeng/`-relative files each write-capable agent may create or modify.
-# `.dapeng/tmp/` is excluded from snapshots entirely, so scratch writes are
+# `.supergoal/`-relative files each write-capable agent may create or modify.
+# `.supergoal/tmp/` is excluded from snapshots entirely, so scratch writes are
 # implicitly allowed for everyone.
 WRITE_SCOPES = {
     "researcher": {"RESEARCH.md"},
@@ -53,13 +53,13 @@ AGENT_TYPE_KEYS = ("agent_type", "subagent_type", "agentType", "subagentType")
 BASELINE_REL = Path("tmp") / ".write-audit-baseline"
 
 
-def find_dapeng(cwd):
-    """Walk up from cwd to the git root looking for a .dapeng directory."""
+def find_supergoal(cwd):
+    """Walk up from cwd to the git root looking for a .supergoal directory."""
     path = Path(cwd or ".").resolve()
     for candidate in (path, *path.parents):
-        dapeng = candidate / ".dapeng"
-        if dapeng.is_dir():
-            return dapeng
+        supergoal = candidate / ".supergoal"
+        if supergoal.is_dir():
+            return supergoal
         if (candidate / ".git").exists():
             break
     return None
@@ -80,8 +80,8 @@ def get_agent_type(event):
     return None
 
 
-def snapshot(dapeng):
-    """{.dapeng-relative posix path: sha256} for every file.
+def snapshot(supergoal):
+    """{.supergoal-relative posix path: sha256} for every file.
 
     tmp/ is excluded (scratch space, open to all writers). archive/ is
     excluded too: no agent may write there anyway, hashing it makes every
@@ -90,10 +90,10 @@ def snapshot(dapeng):
     the root files.
     """
     out = {}
-    for path in sorted(dapeng.rglob("*")):
+    for path in sorted(supergoal.rglob("*")):
         if not path.is_file():
             continue
-        rel = path.relative_to(dapeng).as_posix()
+        rel = path.relative_to(supergoal).as_posix()
         if rel.startswith(("tmp/", "archive/")):
             continue
         try:
@@ -112,7 +112,7 @@ def changed_paths(baseline, current):
 
 
 def scope_violations(agent_type, baseline, current):
-    """Changed `.dapeng/` paths that are outside this agent's write scope."""
+    """Changed `.supergoal/` paths that are outside this agent's write scope."""
     allowed = WRITE_SCOPES.get(agent_type, set())
     return [p for p in changed_paths(baseline, current) if p not in allowed]
 
@@ -120,13 +120,13 @@ def scope_violations(agent_type, baseline, current):
 def describe_scope(agent_type):
     owned = sorted(WRITE_SCOPES.get(agent_type, set()))
     if not owned:
-        return "only .dapeng/tmp/"
-    return " + ".join(".dapeng/" + name for name in owned) + " (plus .dapeng/tmp/)"
+        return "only .supergoal/tmp/"
+    return " + ".join(".supergoal/" + name for name in owned) + " (plus .supergoal/tmp/)"
 
 
-def read_baseline(dapeng):
+def read_baseline(supergoal):
     """The stored snapshot dict, or None when absent or unparseable."""
-    baseline_file = dapeng / BASELINE_REL
+    baseline_file = supergoal / BASELINE_REL
     if not baseline_file.is_file():
         return None
     try:
@@ -136,8 +136,8 @@ def read_baseline(dapeng):
     return data if isinstance(data, dict) else None
 
 
-def write_baseline(dapeng, snap):
-    baseline_file = dapeng / BASELINE_REL
+def write_baseline(supergoal, snap):
+    baseline_file = supergoal / BASELINE_REL
     try:
         baseline_file.parent.mkdir(parents=True, exist_ok=True)
         baseline_file.write_text(
@@ -148,16 +148,16 @@ def write_baseline(dapeng, snap):
         return False
 
 
-def audit(dapeng, agent_type):
+def audit(supergoal, agent_type):
     """(violations, current_snapshot), or (None, None) when no baseline exists."""
-    baseline = read_baseline(dapeng)
+    baseline = read_baseline(supergoal)
     if baseline is None:
         return None, None
-    current = snapshot(dapeng)
+    current = snapshot(supergoal)
     return scope_violations(agent_type, baseline, current), current
 
 
-def duplicate_ids(dapeng):
+def duplicate_ids(supergoal):
     """S/E IDs defined more than once in RESEARCH.md.
 
     IDs are the cross-agent access mechanism; a crashed-and-rerun research
@@ -165,7 +165,7 @@ def duplicate_ids(dapeng):
     wrong row. Definitions counted: register rows (`| S001 | ...`) and claim
     headers (`### E001 ...`).
     """
-    research = dapeng / "RESEARCH.md"
+    research = supergoal / "RESEARCH.md"
     if not research.is_file():
         return []
     try:
@@ -185,11 +185,11 @@ def duplicate_ids(dapeng):
 
 def block_reason(agent_type, violations):
     return (
-        "SuperGoal write-scope audit: {} changed .dapeng/ files outside its"
+        "SuperGoal write-scope audit: {} changed .supergoal/ files outside its"
         " scope: {}. Allowed: {}. Revert or move those writes; the scheduler"
         " owns BRIEF/PLAN/JOURNAL and every other agent's documents.".format(
             agent_type,
-            ", ".join(".dapeng/" + p for p in violations),
+            ", ".join(".supergoal/" + p for p in violations),
             describe_scope(agent_type),
         )
     )
@@ -209,11 +209,11 @@ def run_hook():
     if agent_type not in WRITE_SCOPES:
         return  # reviewers, explorer, or an unknown type: nothing to audit
 
-    dapeng = find_dapeng(event.get("cwd", "."))
-    if dapeng is None:
+    supergoal = find_supergoal(event.get("cwd", "."))
+    if supergoal is None:
         return
 
-    violations, current = audit(dapeng, agent_type)
+    violations, current = audit(supergoal, agent_type)
     if violations is None:
         return  # scheduler took no snapshot; the --audit net covers this wave
     if violations:
@@ -221,22 +221,22 @@ def run_hook():
             {"decision": "block", "reason": block_reason(agent_type, violations)}
         ))
         return
-    write_baseline(dapeng, current)  # clean turn: advance the baseline
+    write_baseline(supergoal, current)  # clean turn: advance the baseline
 
 
 def run_cli(argv):
     """--snapshot / --audit <agent> for the scheduler. Nonzero exit on failure."""
-    dapeng = find_dapeng(".")
-    if dapeng is None:
-        print("subagent_audit: no .dapeng/ directory found from cwd", file=sys.stderr)
+    supergoal = find_supergoal(".")
+    if supergoal is None:
+        print("subagent_audit: no .supergoal/ directory found from cwd", file=sys.stderr)
         return 1
 
     if argv[0] == "--snapshot":
-        snap = snapshot(dapeng)
-        if not write_baseline(dapeng, snap):
+        snap = snapshot(supergoal)
+        if not write_baseline(supergoal, snap):
             print("subagent_audit: could not write baseline", file=sys.stderr)
             return 1
-        print("baseline: {} file(s) under {}".format(len(snap), dapeng))
+        print("baseline: {} file(s) under {}".format(len(snap), supergoal))
         return 0
 
     if argv[0] == "--audit" and len(argv) > 1:
@@ -249,7 +249,7 @@ def run_cli(argv):
                 file=sys.stderr,
             )
             return 1
-        violations, current = audit(dapeng, agent_type)
+        violations, current = audit(supergoal, agent_type)
         if violations is None:
             print("subagent_audit: no baseline; run --snapshot before the wave",
                   file=sys.stderr)
@@ -257,7 +257,7 @@ def run_cli(argv):
         problems = []
         if violations:
             problems.append(block_reason(agent_type, violations))
-        dupes = duplicate_ids(dapeng)
+        dupes = duplicate_ids(supergoal)
         if dupes:
             problems.append(
                 "duplicate S/E-ID definitions in RESEARCH.md: {} - citations"
@@ -267,7 +267,7 @@ def run_cli(argv):
         if problems:
             print("; ".join(problems))
             return 1
-        write_baseline(dapeng, current)
+        write_baseline(supergoal, current)
         print("write scope clean for {}".format(agent_type))
         return 0
 

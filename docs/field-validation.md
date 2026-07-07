@@ -9,7 +9,7 @@ Run them during the first three real missions and record the outcomes here.
 | # | Measurement | Decides |
 | --- | --- | --- |
 | FV1 | Capture one live SubagentStop payload; run one deliberate out-of-scope write by a bulk-writer agent | Hook blocks -> drop the per-wave `--audit` duty from scheduler duties (keep `--snapshot`). Payload never matches -> drop the hooks.json SubagentStop entry; `--audit` becomes the sole net. |
-| FV2 | Does `stop_hook_active` appear in live Stop events, and does the one-nudge cycle behave (block once, pass second)? | Whether the Stop hook's no-loop guarantee is real, or a sentinel-file fallback (`.dapeng/tmp/.stop-nudged`) is needed. |
+| FV2 | Does `stop_hook_active` appear in live Stop events, and does the one-nudge cycle behave (block once, pass second)? | Whether the Stop hook's no-loop guarantee is real, or a sentinel-file fallback (`.supergoal/tmp/.stop-nudged`) is needed. |
 | FV3 | Set `max_threads = 1` and observe whether the 4-wide debate serializes | Whether the `[agents]` config keys are real platform enforcement or fictional (TOML parsers ignore unknown tables silently). |
 | FV4 | Count refuted cycles / hard-rule-4 events / reopens whose root lacks an `L-` entry in PROJECT.md at Close | Slippage over ~1/3 justifies a minimal Stop-hook check for lessons consolidation; below that, discipline suffices. |
 | FV5 | Per REVISE round: gate decisions that overrode the synthesis, and rejected objections reviewers re-raised next round | Rubber-stamp + no-resurface -> merge `synthesizer` into the main thread; divergence -> its isolation earns the call. |

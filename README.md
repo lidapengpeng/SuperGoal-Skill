@@ -37,7 +37,7 @@ crawlers and data pipelines, model training, research reproduction.
 | Design | starts coding | risky missions first survive research + a 4-reviewer design debate |
 | Review | self-review, same context | separate reviewer agent attacks every completion claim |
 | "Done" | the model judges "achieved" | Stop hook cross-checks every checked box against logged verdicts |
-| Memory | starts from zero | lessons, plans, and evidence persist in `.dapeng/` files |
+| Memory | starts from zero | lessons, plans, and evidence persist in `.supergoal/` files |
 
 ## 🧭 How a mission flows
 
@@ -121,14 +121,17 @@ recopy into `<repo>/.codex/`. Nothing else references a model name.
 
 ## 🗂️ What lives on disk
 
+SuperGoal stores mission files directly in the current project under
+`.supergoal/`.
+
 | File | Role |
 | --- | --- |
-| `.dapeng/BRIEF.md` | intent — objective, boundaries, success criterion, assumptions |
-| `.dapeng/PLAN.md` | claims — subgoal checkboxes the Stop hook machine-reads |
-| `.dapeng/JOURNAL.md` | evidence — append-only cycle ledger with quoted results and verdicts |
-| `.dapeng/DRAFT_BRIEF / RESEARCH / DESIGN / DEBATE.md` | design harness (standard/high-risk only) |
-| `.dapeng/EXPERIMENTS.md` | ML run ledger — PENDING rows block completion |
-| `.dapeng/PROJECT.md` · `BACKLOG.md` · `archive/` | lessons that compound, parked ideas, finished missions |
+| `.supergoal/BRIEF.md` | intent — objective, boundaries, success criterion, assumptions |
+| `.supergoal/PLAN.md` | claims — subgoal checkboxes the Stop hook machine-reads |
+| `.supergoal/JOURNAL.md` | evidence — append-only cycle ledger with quoted results and verdicts |
+| `.supergoal/DRAFT_BRIEF / RESEARCH / DESIGN / DEBATE.md` | design harness (standard/high-risk only) |
+| `.supergoal/EXPERIMENTS.md` | ML run ledger — PENDING rows block completion |
+| `.supergoal/PROJECT.md` · `BACKLOG.md` · `archive/` | lessons that compound, parked ideas, finished missions |
 
 Every mission is resumable from these files alone — kill the session at any
 point and the router infers where to continue. Chat history is never the

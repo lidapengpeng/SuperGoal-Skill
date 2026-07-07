@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SuperGoal Stop hook: block session end while verifiable work remains.
 
-Reads the Stop event JSON on stdin and cross-checks the .dapeng/ state files.
+Reads the Stop event JSON on stdin and cross-checks the .supergoal/ state files.
 Blocks (decision: block) when any of these hold:
 
 1. PLAN.md has unchecked subgoals (`- [ ]`).
@@ -49,13 +49,13 @@ from pathlib import Path
 MAX_LISTED = 5
 
 
-def find_dapeng(cwd):
-    """Walk up from cwd to the git root looking for a .dapeng directory."""
+def find_supergoal(cwd):
+    """Walk up from cwd to the git root looking for a .supergoal directory."""
     path = Path(cwd or ".").resolve()
     for candidate in (path, *path.parents):
-        dapeng = candidate / ".dapeng"
-        if dapeng.is_dir():
-            return dapeng
+        supergoal = candidate / ".supergoal"
+        if supergoal.is_dir():
+            return supergoal
         if (candidate / ".git").exists():
             break
     return None
@@ -196,7 +196,7 @@ def pending_runs(experiments_text):
     ]
 
 
-def design_inspection_problems(dapeng, plan_present):
+def design_inspection_problems(supergoal, plan_present):
     """Cluster missions must clear the final design inspection before Close.
 
     Fires only when the mission both passed Agree (PLAN.md present) and is a
@@ -206,7 +206,7 @@ def design_inspection_problems(dapeng, plan_present):
     inspection, so a present DESIGN.md without a passed inspection is a real
     gap, not a mid-design pause (those have no PLAN.md yet).
     """
-    design = dapeng / "DESIGN.md"
+    design = supergoal / "DESIGN.md"
     if not (plan_present and design.is_file()):
         return []
     # The LAST inspection section wins: re-inspection after a REVISE must not
@@ -240,28 +240,28 @@ def main():
     if event.get("stop_hook_active"):
         return  # this stop attempt was already continued once; let it end
 
-    dapeng = find_dapeng(event.get("cwd", "."))
-    if dapeng is None:
+    supergoal = find_supergoal(event.get("cwd", "."))
+    if supergoal is None:
         return
 
-    journal = dapeng / "JOURNAL.md"
+    journal = supergoal / "JOURNAL.md"
     sections = journal_sections(read_text(journal)) if journal.is_file() else []
 
     problems = []
 
-    plan = dapeng / "PLAN.md"
+    plan = supergoal / "PLAN.md"
     if plan.is_file():
         problems.extend(plan_problems(read_text(plan), sections))
-    elif (dapeng / "BRIEF.md").is_file():
+    elif (supergoal / "BRIEF.md").is_file():
         problems.append(
             "BRIEF.md exists but PLAN.md does not - a mission past Agree"
             " always has both (promotion writes PLAN.md first); re-derive"
             " PLAN.md from the agreed contract before ending the session"
         )
 
-    problems.extend(design_inspection_problems(dapeng, plan.is_file()))
+    problems.extend(design_inspection_problems(supergoal, plan.is_file()))
 
-    experiments = dapeng / "EXPERIMENTS.md"
+    experiments = supergoal / "EXPERIMENTS.md"
     if experiments.is_file():
         pending = pending_runs(read_text(experiments))
         if pending:

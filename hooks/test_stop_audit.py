@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 
 from stop_audit import (
+    find_supergoal,
     journal_sections,
     has_pass,
     plan_problems,
@@ -172,5 +173,21 @@ with tempfile.TemporaryDirectory() as _d:
     )
     assert design_inspection_problems(dp, plan_present=True) == [], \
         "re-inspection pass must clear the earlier failed block"
+
+# --- find_supergoal ------------------------------------------------------
+with tempfile.TemporaryDirectory() as _d:
+    root = Path(_d)
+    sg = root / ".supergoal"
+    nested = root / "src" / "pkg"
+    sg.mkdir()
+    nested.mkdir(parents=True)
+    assert find_supergoal(nested) == sg, "walk up to the .supergoal state dir"
+
+with tempfile.TemporaryDirectory() as _d:
+    root = Path(_d)
+    (root / ".git").mkdir()
+    nested = root / "src"
+    nested.mkdir()
+    assert find_supergoal(nested) is None, "stop at git root when no state dir exists"
 
 print("stop_audit self-check: all assertions passed")

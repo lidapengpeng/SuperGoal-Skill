@@ -2,7 +2,7 @@
 
 Everything in this file is platform glue for Codex CLI. SuperGoal is a Codex
 skill, so `/goal`, the Stop hook, custom agents, and strong-model config are
-required Setup wiring. The `.dapeng/` state files provide the evidence ledger;
+required Setup wiring. The `.supergoal/` state files provide the evidence ledger;
 the Codex wiring makes the ledger enforceable.
 
 ## /goal - one durable goal per mission
@@ -17,7 +17,7 @@ Why one top-level goal, not many small ones: a goal is thread-scoped state -
 one thread holds one goal. Splitting a mission into a chain of small `/goal`
 commands destroys the global verification surface; each fragment can be
 "achieved" shallowly while the mission fails. Instead: one `/goal` whose
-completion condition references `.dapeng/PLAN.md`; subgoals live in the
+completion condition references `.supergoal/PLAN.md`; subgoals live in the
 plan, each with its own verify command.
 
 Template (fill from the confirmed Agree message - every element maps 1:1):
@@ -26,7 +26,7 @@ Template (fill from the confirmed Agree message - every element maps 1:1):
 /goal <outcome> verified by <verification surface: exact commands, metrics,
 artifacts> while preserving <constraints that must not regress>. Use
 <boundaries: allowed files, tools, data; protected paths>. Between
-iterations, follow the DAOR discipline in .dapeng/: pick the single
+iterations, follow the DAOR discipline in .supergoal/: pick the single
 highest-value unchecked subgoal from PLAN.md, log every cycle to JOURNAL.md,
 and mark a subgoal done only after its verify command passes and the
 adversarial reviewer returns PASS. Budget: at most <N> DAOR cycles
@@ -103,19 +103,19 @@ all of these platform rules.
 ## SubagentStop hook - write-scope enforcement (experimental)
 
 `hooks/subagent_audit.py` fires when a write-capable cluster agent's turn ends
-and blocks it if the agent created, modified, or deleted a `.dapeng/` file
+and blocks it if the agent created, modified, or deleted a `.supergoal/` file
 outside its declared scope. It pairs with the scheduler: before spawning a
 write-capable wave the main thread runs
 `python <repo>/.codex/hooks/subagent_audit.py --snapshot`, which records a
-SHA-256 per `.dapeng/` file (tmp/ excluded) into
-`.dapeng/tmp/.write-audit-baseline`; on the agent's turn end the hook
+SHA-256 per `.supergoal/` file (tmp/ excluded) into
+`.supergoal/tmp/.write-audit-baseline`; on the agent's turn end the hook
 re-snapshots, diffs, and checks each changed path against the agent's
 allow-list (the three bulk writers each own one document; `worker` owns only
-`.dapeng/tmp/`). Reviewers never match - they are read-only. The `hooks.json`
+`.supergoal/tmp/`). Reviewers never match - they are read-only. The `hooks.json`
 entry matches `^(researcher|designer|synthesizer|worker)$`.
 
-Content hashing, not `git status`, on purpose: in the common layout `.dapeng/`
-is untracked, so git collapses the whole tree to one `?? .dapeng/` line and a
+Content hashing, not `git status`, on purpose: in the common layout `.supergoal/`
+is untracked, so git collapses the whole tree to one `?? .supergoal/` line and a
 content edit to an untracked file never changes status output - a diff of
 status text misses real violations there. Hashing sees content regardless of
 tracking state, and the audit script itself needs no git (the shipped hook

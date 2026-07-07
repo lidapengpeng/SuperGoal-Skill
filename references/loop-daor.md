@@ -16,7 +16,7 @@ discipline.
 
 ### 1. Design
 
-- If `.dapeng/PROJECT.md` exists, check its `L-` lessons for the problem at
+- If `.supergoal/PROJECT.md` exists, check its `L-` lessons for the problem at
   hand before hypothesizing: an approach this project already refuted is
   context, not a candidate. The file is capped, so this costs one read.
 - Hypothesis in one sentence: "the bottleneck is X; changing Y should move
@@ -66,7 +66,7 @@ discipline.
 - A refuted expectation or a gamed check becomes a permanent guard: fold the
   counterexample into that subgoal's verify command so the same failure can
   never pass silently again. It also becomes memory: record or update the
-  root's `L-` entry in `.dapeng/PROJECT.md` (rules in
+  root's `L-` entry in `.supergoal/PROJECT.md` (rules in
   `references/lifecycle.md`) - immediately when hard rule 4 fires (the
   checkpoint's diagnosis is the entry), at Close's consolidation sweep for
   everything else.
@@ -107,7 +107,7 @@ from this format and the hook will refuse to let the session end.
 
 On standard/high-risk missions the Loop does not invent the design cycle by
 cycle. The approach, subgoal plan, and verification plan were authored,
-debated, and inspected before Agree and live in `.dapeng/DESIGN.md`
+debated, and inspected before Agree and live in `.supergoal/DESIGN.md`
 (`references/super-agent-cluster.md`); `PLAN.md` was derived from that
 accepted design. DAOR still runs one falsifiable cycle per subgoal - it
 executes the inspected plan, it does not re-open it. A genuinely new subgoal
@@ -162,7 +162,7 @@ conservative assumption.
 
 The main thread is a scheduler: keep its context for decisions. Push bulk
 work down - long log parsing, wide code searches, big builds - to subagents
-or to files under `.dapeng/tmp/`, and pull back only the distilled result.
+or to files under `.supergoal/tmp/`, and pull back only the distilled result.
 On long missions prefer starting a fresh context at a cycle boundary over
 compacting a bloated one - BRIEF.md + PLAN.md + the JOURNAL tail are the
 entire handoff, by design. After any reset or compaction, re-read them
