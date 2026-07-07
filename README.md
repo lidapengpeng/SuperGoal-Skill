@@ -74,24 +74,40 @@ research cost before anything is spent.
 ## 💬 What a session looks like
 
 ```text
-You:  $supergoal speed up our test suite, CI is painfully slow
+You:  $supergoal How can I improve SAM 3 for identifying buildings in remote sensing imagery?
 
-It:   Recon: pytest + tox; CI ~14 min; 3 test files take 70% of the time.
-      1. Success criterion?  A. CI < 5 min on the runner (recommended)  B. < 8 min  C. yours
-      2. May I add pytest-xdist? (high-risk to assume)  A. Yes  B. No
+It:   Recon: segmentation repo found; GeoTIFF tiling, SAM 3 adapters, building
+      masks, and an eval script reporting IoU/F1 by AOI.
+      1. Success criterion?
+         A. +5 building F1 on a cross-city holdout, with no precision drop > 1 point (recommended)
+         B. +3 building mIoU
+         C. yours
+      2. Allowed work?
+         A. prompts, adapters, loss, sampling, and augmentation only (recommended)
+         B. full fine-tune
+         C. architecture changes allowed
+      3. Evidence budget?
+         A. one reproduced baseline + two ablations (recommended)
+         B. quick smoke experiment only
+         C. full sweep
 
-You:  1A 2A
+You:  1A 2A 3A
 
-It:   Objective: CI wall-clock < 5 min · verify: `time pytest -q -n auto` < 300s
-      Plan: SG1 baseline profile → SG2 xdist + fixture isolation → SG3 cache → FINAL gate
-      Assumptions: [low] CI config editable · Budget: 10 cycles
+It:   Objective: improve SAM 3 building extraction for remote sensing imagery.
+      Verify: `python evaluate.py --split cross_city --class building`
+      shows building F1 improves by >= 0.05 and precision drops by <= 0.01.
+      Plan: SG1 reproduce baseline → SG2 inspect false positives/negatives →
+      SG3 run adapter/data ablations → SG4 confirm best variant → FINAL gate
+      Assumptions: [low] labels are usable; [medium] GPU budget covers 3 runs.
       Reply "go" to start.
 
 You:  go
 
-It:   [/goal created · plan gate GO · baseline 14m02s quoted from CI log]
-      [C1..C6: hypothesis → change → quoted result → reviewer verdict, journaled]
-      Final report: 14m02s → 4m41s, evidence per subgoal, reviewer PASS.
+It:   [/goal created · .supergoal/PLAN.md + BRIEF.md written]
+      [Research: remote-sensing segmentation papers and repo docs cited]
+      [C1..C5: baseline → hypothesis → run command → metric table → reviewer verdict]
+      Final report: cross-city F1 0.712 → 0.768, precision unchanged;
+      ablation table, changed files, and reviewer PASS are linked from JOURNAL.md.
 ```
 
 A precise request skips the questions: recon, one Agree message, "go".

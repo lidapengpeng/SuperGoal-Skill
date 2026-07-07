@@ -70,24 +70,40 @@ flowchart TD
 ## 💬 一次会话是什么样子
 
 ```text
-You:  $supergoal speed up our test suite, CI is painfully slow
+You:  $supergoal 如何改进 SAM 3，让它更好地识别遥感影像中的建筑？
 
-It:   Recon: pytest + tox; CI ~14 min; 3 test files take 70% of the time.
-      1. Success criterion?  A. CI < 5 min on the runner (recommended)  B. < 8 min  C. yours
-      2. May I add pytest-xdist? (high-risk to assume)  A. Yes  B. No
+It:   Recon: 找到分割仓库；已有 GeoTIFF 切片、SAM 3 adapters、建筑掩膜，
+      以及按 AOI 输出 IoU/F1 的评估脚本。
+      1. 成功标准？
+         A. cross-city holdout 上建筑 F1 +5，precision 下降不超过 1 个点（推荐）
+         B. 建筑 mIoU +3
+         C. 你指定
+      2. 允许哪些改动？
+         A. 仅 prompts、adapters、loss、sampling、augmentation（推荐）
+         B. full fine-tune
+         C. 允许 architecture changes
+      3. 证据预算？
+         A. 一个复现 baseline + 两个 ablations（推荐）
+         B. quick smoke experiment
+         C. full sweep
 
-You:  1A 2A
+You:  1A 2A 3A
 
-It:   Objective: CI wall-clock < 5 min · verify: `time pytest -q -n auto` < 300s
-      Plan: SG1 baseline profile → SG2 xdist + fixture isolation → SG3 cache → FINAL gate
-      Assumptions: [low] CI config editable · Budget: 10 cycles
+It:   Objective: 改进 SAM 3 在遥感影像中的建筑提取效果。
+      Verify: `python evaluate.py --split cross_city --class building`
+      显示建筑 F1 提升 >= 0.05，且 precision 下降 <= 0.01。
+      Plan: SG1 复现 baseline → SG2 检查 false positives/negatives →
+      SG3 运行 adapter/data ablations → SG4 确认最佳变体 → FINAL gate
+      Assumptions: [low] labels 可用；[medium] GPU budget 足够跑 3 次。
       Reply "go" to start.
 
 You:  go
 
-It:   [/goal created · plan gate GO · baseline 14m02s quoted from CI log]
-      [C1..C6: hypothesis → change → quoted result → reviewer verdict, journaled]
-      Final report: 14m02s → 4m41s, evidence per subgoal, reviewer PASS.
+It:   [/goal created · .supergoal/PLAN.md + BRIEF.md written]
+      [Research: 引用遥感分割论文和仓库文档]
+      [C1..C5: baseline → hypothesis → run command → metric table → reviewer verdict]
+      Final report: cross-city F1 0.712 → 0.768，precision 不变；
+      ablation table、changed files、reviewer PASS 都已链接到 JOURNAL.md。
 ```
 
 精确请求会跳过问题：侦察，一条 Agree 消息，然后 “go”。
