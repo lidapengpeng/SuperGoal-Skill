@@ -1,0 +1,18 @@
+# SuperGoal: merge into ~/.codex/config.toml or <repo>/.codex/config.toml
+
+# Strong-model defaults for SuperGoal missions and spawned agents.
+model = "gpt-5.5"
+review_model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+plan_mode_reasoning_effort = "xhigh"
+
+# SuperGoal requires this feature flag (Codex >= 0.128).
+# Alternatively run: codex features enable goals
+[features]
+goals = true
+
+# Subagent bounds: peak concurrency is the 4-reviewer debate plus one margin
+# slot (parallel mode uses separate threads, not subagents); no recursion.
+[agents]
+max_threads = 5
+max_depth = 1

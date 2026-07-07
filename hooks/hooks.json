@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/stop_audit.py\"",
+            "timeout": 15,
+            "statusMessage": "SuperGoal completion audit"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "^(researcher|designer|synthesizer|worker)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/subagent_audit.py\"",
+            "timeout": 15,
+            "statusMessage": "SuperGoal write-scope audit"
+          }
+        ]
+      }
+    ]
+  }
+}
