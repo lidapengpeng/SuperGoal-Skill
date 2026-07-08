@@ -50,6 +50,8 @@ flowchart TD
   F -->|标准 / 高风险| G["设计阶段：研究 → 设计草案 →
   4 reviewer 辩论 → 检查"]
   F -->|小任务| H["DAOR 循环"]
+  M["机制类研究：idea atoms · novelty verdict ·
+  七点 research design contract"] -.-> G
   G --> H
   H --> I{"reviewer 关口"}
   I -->|FAIL| H
@@ -60,7 +62,7 @@ flowchart TD
   classDef gate fill:#7f1d1d,stroke:#fca5a5,color:#fff;
   classDef design fill:#581c87,stroke:#c084fc,color:#fff;
   class I gate;
-  class G design;
+  class G,M design;
 ```
 
 澄清阶段的全部职责就是阐明你的意图——仓库无法回答的问题、成功标准、

@@ -52,6 +52,8 @@ flowchart TD
   F -->|standard / high-risk| G["Design phase: research → draft →
   4-reviewer debate → inspection"]
   F -->|small| H["DAOR cycles"]
+  M["mechanism research: idea atoms · novelty verdict ·
+  7-point design contract"] -.-> G
   G --> H
   H --> I{"reviewer gate"}
   I -->|FAIL| H
@@ -62,7 +64,7 @@ flowchart TD
   classDef gate fill:#7f1d1d,stroke:#fca5a5,color:#fff;
   classDef design fill:#581c87,stroke:#c084fc,color:#fff;
   class I gate;
-  class G design;
+  class G,M design;
 ```
 
 Clarify's whole job is elaborating your intent — the questions the repo
