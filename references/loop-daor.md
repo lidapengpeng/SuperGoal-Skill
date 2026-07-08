@@ -14,7 +14,13 @@ discipline.
 
 ## The four phases
 
-### 1. Design
+Naming: the cluster **design phase** (D1-D4 in `references/super-agent-cluster.md`)
+runs once after Agree on standard/high-risk missions and produces DESIGN.md.
+Each DAOR cycle's **Design** step below is a per-cycle falsifiable hypothesis
+for one subgoal - it does not reopen D1-D4. Mid-loop redesign of the accepted
+design is a separate path (hard re-Agree if the contract shape moves).
+
+### 1. Design (per-cycle hypothesis)
 
 - If `.supergoal/PROJECT.md` exists, check its `L-` lessons for the problem at
   hand before hypothesizing: an approach this project already refuted is

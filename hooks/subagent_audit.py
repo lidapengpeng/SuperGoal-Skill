@@ -30,7 +30,8 @@ EXPERIMENTAL: the exact SubagentStop payload shape and the JSON-stdout
 requirement were designed from Codex hook documentation, not verified against
 a live install. Every failure mode degrades to "do not block" so a payload
 mismatch can never wedge a session; until verified, the scheduler's `--audit`
-pass after each write-capable wave stays the primary safety net.
+pass after each write-capable wave stays the primary safety net. When the
+hook does fire cleanly, it runs the same duplicate S/E-ID scan as `--audit`.
 """
 import hashlib
 import json
@@ -216,9 +217,21 @@ def run_hook():
     violations, current = audit(supergoal, agent_type)
     if violations is None:
         return  # scheduler took no snapshot; the --audit net covers this wave
+    problems = []
     if violations:
+        problems.append(block_reason(agent_type, violations))
+    # Same duplicate S/E-ID scan as CLI --audit: live SubagentStop must not
+    # be a weaker net than the scheduler fallback.
+    dupes = duplicate_ids(supergoal)
+    if dupes:
+        problems.append(
+            "duplicate S/E-ID definitions in RESEARCH.md: {} - citations"
+            " will resolve to the wrong row; renumber before design"
+            " consumes them".format(", ".join(dupes))
+        )
+    if problems:
         print(json.dumps(
-            {"decision": "block", "reason": block_reason(agent_type, violations)}
+            {"decision": "block", "reason": "; ".join(problems)}
         ))
         return
     write_baseline(supergoal, current)  # clean turn: advance the baseline

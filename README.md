@@ -44,27 +44,73 @@ research reproduction.
 
 ```mermaid
 flowchart TD
-  A["$supergoal &lt;Description-Your-Task&gt;"] --> B["Recon + tier check"]
-  B --> C["Clarify — elaborate intent, pin success criterion + budget"]
-  C --> D["Agree — one 'go' approves scope AND spend"]
-  D --> E["/goal contract"]
-  E --> F{"tier"}
-  F -->|standard / high-risk| G["Design phase: research → draft →
-  4-reviewer debate → inspection"]
-  F -->|small| H["DAOR cycles"]
-  M["mechanism research: idea atoms · novelty verdict ·
-  7-point design contract"] -.-> G
-  G --> H
-  H --> I{"reviewer gate"}
-  I -->|FAIL| H
-  I -->|PASS| J{"all subgoals?"}
-  J -->|no| H
-  J -->|yes| K["final gate → verified close"]
+    START(["$supergoal &lt;Description-Your-Task&gt;"]) --> SETUP["Setup preflight - every invocation, idempotent<br/>.supergoal/ state dir · Stop + SubagentStop hooks<br/>10 custom agents · /goal check · tool inventory"]
+    SETUP --> ROUTER{"Router - routes by disk state,<br/>never chat memory"}
 
-  classDef gate fill:#7f1d1d,stroke:#fca5a5,color:#fff;
-  classDef design fill:#581c87,stroke:#c084fc,color:#fff;
-  class I gate;
-  class G,M design;
+    ROUTER -- "no .supergoal/" --> RECON
+    ROUTER -- "mission open" --> RESUME["Resume at first incomplete phase<br/>(from BRIEF + PLAN + JOURNAL tail)"]
+    ROUTER -- "mission closed" --> NEXT
+    ROUTER -- "review-only request" --> GATEONLY["Run the matching gate<br/>(subgoal or final)"]
+
+    subgraph INTAKE ["Intake - clarify before acting"]
+        direction TB
+        RECON["Recon - explorer subagent, read-only<br/>stack · commands · layout · prior art"] --> TIER["Tier check: small / standard / high-risk<br/>TIER note logged in JOURNAL.md"]
+        TIER --> CLARIFY["Clarify - max 2 waves, 5 questions<br/>mandatory pins: success criterion + budget<br/>everything unasked becomes the assumption ledger"]
+        CLARIFY --> AGREE["Agree - ONE consent message<br/>objective · criterion · assumptions · tier + design cost · budget"]
+    end
+
+    AGREE -- "user: go" --> CONTRACT["Write PLAN.md, then BRIEF.md<br/>create one /goal contract"]
+    CONTRACT --> FORK{"tier?"}
+
+    FORK -- "standard / high-risk" --> D1
+    FORK -- "small" --> OBS0
+
+    subgraph DESIGN ["Design phase - 7-agent cluster, runs inside the Loop"]
+        direction TB
+        D1["D1 Research - researcher<br/>source register + cited claims into RESEARCH.md<br/>mechanism missions: idea atoms + novelty verdicts"] --> D2["D2 Draft - designer into DESIGN.md<br/>mechanism missions: 7-point research design contract"]
+        D2 --> D3{"D3 Debate - 4 reviewers in parallel:<br/>design · risk · verifier · leanness<br/>1-3 rounds, high-risk needs 2+"}
+        D3 -- "any REVISE" --> SYN["synthesizer adjudicates into DEBATE.md<br/>designer redrafts"]
+        SYN --> D3
+        D3 -- "all GO" --> D4["D4 Final inspection - reviewer, fresh context<br/>implementation-ready: yes"]
+        D4 --> DERIVE["Derive SG1..SGn into PLAN.md"]
+        DERIVE --> PLANGATE["Plan gate - reviewer attacks derived plan<br/>plan-review: GO"]
+    end
+
+    PLANGATE -. "REVISE: amend contract" .-> AGREE
+    PLANGATE --> OBS0["Observe-0 - run baseline eval<br/>before any change"]
+
+    subgraph LOOP ["DAOR loop - one subgoal, one cycle at a time"]
+        direction TB
+        OBS0 --> DZ["Design - falsifiable hypothesis<br/>one variable · verify command · expected result"]
+        DZ --> ACT["Act - smallest defensible change<br/>ML: smoke test before full run"]
+        ACT --> OBSV["Observe - quote actual outputs<br/>never paraphrase"]
+        OBSV --> REASON["Reason - supported / refuted / inconclusive<br/>append 4-field entry to JOURNAL.md"]
+        REASON --> SGATE{"Subgoal gate<br/>reviewer, isolated context"}
+        SGATE -- "FAIL: reopen" --> DZ
+        SGATE -- "PASS" --> BOX["Check the SG box in PLAN.md<br/>checkpoint the green state"]
+        BOX --> LEFT{"subgoals left?"}
+        LEFT -- "yes" --> DZ
+    end
+
+    D3 -. "BLOCK, or no convergence in 3 rounds" .-> CKPT
+    REASON -. "stop rules: budget spent · 3 flat cycles ·<br/>same root cause failed twice · protected path" .-> CKPT["User checkpoint"]
+    CKPT -. "user decides" .-> DZ
+
+    LEFT -- "no" --> FGATE{"Final gate - reviewer audits<br/>whole plan + ledger + diff"}
+    FGATE -- "FAIL: reopen" --> DZ
+    FGATE -- "PASS" --> CLOSE["Close - re-run every verify · check FINAL box<br/>clean tmp · lessons into PROJECT.md · final report"]
+    CLOSE --> HOOK["Stop hook - stop_audit.py, fires at session end<br/>blocks while any checked box lacks logged evidence"]
+    HOOK --> NEXT["Next - archive to .supergoal/archive/<br/>new mission / reopen / backlog"]
+    NEXT -. "new mission: compact clarify" .-> CLARIFY
+
+    classDef gate fill:#7f1d1d,stroke:#fca5a5,color:#fff;
+    classDef design fill:#581c87,stroke:#c084fc,color:#fff;
+    classDef hook fill:#1e3a8a,stroke:#93c5fd,color:#fff;
+    classDef user fill:#14532d,stroke:#86efac,color:#fff;
+    class SGATE,FGATE,PLANGATE gate;
+    class D1,D2,D3,SYN,D4,DERIVE design;
+    class SETUP,HOOK hook;
+    class CLARIFY,AGREE,CKPT user;
 ```
 
 Clarify's whole job is elaborating your intent — the questions the repo
@@ -108,7 +154,7 @@ It:   Objective: CI wall-clock < 5 min · verify: `time pytest -q -n auto` < 300
 
 You:  go
 
-It:   [/goal created · plan gate GO · baseline 14m02s quoted from CI log]
+It:   [/goal created · plan-review: SKIPPED (small mission) · baseline 14m02s quoted from CI log]
       [C1..C6: hypothesis → change → quoted result → reviewer verdict, journaled]
       Final report: 14m02s → 4m41s, evidence per subgoal, reviewer PASS.
 ```
@@ -185,7 +231,8 @@ absolute hook path.
 
 ## Honest limits
 
-- The Stop hook checks ledger consistency, not scientific validity — the
+- The Stop hook checks ledger consistency and mechanism-contract **label
+  presence** (when `## Novelty` exists), not scientific validity — the
   reviewer gates and quoted-evidence rules exist for that.
 - The SubagentStop write-scope hook is **experimental** (designed from docs,
   not yet verified on a live install); it degrades to "do not block", and a

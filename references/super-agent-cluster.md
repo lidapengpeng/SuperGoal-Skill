@@ -24,10 +24,11 @@ The small test already gates the plan-gate skip; this applies it one level
 higher, to gate the design phase itself.
 
 - **Small** -> lean path: Recon, Clarify, Agree, Loop, Close with the gates
-  woven in (plan gate before cycle 1, subgoal gate per cycle, final gate
-  before Close). `researcher`, `designer`, the four debate reviewers, and
-  `synthesizer` never run. `reviewer` still gates every subgoal and the final
-  claim - that was never optional.
+  woven in (plan gate logged as `plan-review: SKIPPED (small mission)`
+  before cycle 1, subgoal gate per cycle, final gate before Close).
+  `researcher`, `designer`, the four debate reviewers, and `synthesizer`
+  never run. `reviewer` still gates every subgoal and the final claim -
+  that was never optional.
 - **Standard** -> the design phase below runs first in the Loop, minimum 1
   debate round.
 - **High-risk** -> design phase with a minimum of 2 debate rounds (a
@@ -35,12 +36,13 @@ higher, to gate the design phase itself.
   code exists) and the shorter default budget leash from
   `references/clarify.md`.
 
-The main thread applies the tests once, right after Recon, and logs the
-decision as a `## TIER` note in `JOURNAL.md` answering the criteria (so the
-classification is auditable, not a silent judgment). The tier and its
-estimated design cost appear as a contract line in the Agree message - the
-user approves the spend before any of it happens. This is a judgment recon
-mostly answers, not a question charged against Clarify's budget.
+The main thread applies the tests once, right after Recon. Create
+`.supergoal/JOURNAL.md` if missing (Agree has not created it yet), then log
+a `## TIER` note answering the criteria so the classification is auditable,
+not a silent judgment. The tier and its estimated design cost appear as a
+contract line in the Agree message - the user approves the spend before any
+of it happens. This is a judgment recon mostly answers, not a question
+charged against Clarify's budget.
 
 **Mid-mission escalation.** If a "small" mission's real scope grows past the
 test (discovered complexity, a subgoal that turns out to need an ML metric or
@@ -113,8 +115,9 @@ in one of these files.
 At mission end these files archive with the mission
 (`.supergoal/archive/<YYYYMMDD>-<slug>/`), exactly like BRIEF/PLAN/JOURNAL.
 A mission parked during the design phase uses the normal park procedure in
-`references/lifecycle.md` - PLAN.md and JOURNAL.md exist from Agree, so
-nothing special is needed beyond deleting the write-audit baseline.
+`references/lifecycle.md` - `JOURNAL.md` may already exist from the Tier
+note; Agree ensures `PLAN.md` is present - nothing special beyond deleting
+the write-audit baseline.
 
 ## Research protocol (D1)
 
@@ -263,11 +266,14 @@ On mechanism missions (a new module/loss/training signal is the deliverable)
 claims are **idea atoms** - extracted by component, not by section - adding
 `component-type`, `mechanism`, `mathematical-form`, `insertion-point`,
 `limitations`, and `transferable-to` fields, plus negative-knowledge claims
-(what did not work, what was never ablated). The researcher also serves
-novelty-check packets against proposed mechanisms; field lists and verdict
-vocabulary are canonical in `config/researcher.toml`, and the design-side
-requirements those atoms feed live in `references/ml-experiment.md`
-(research design contract).
+(what did not work, what was never ablated). **Packet defaults (not
+optional):** every D1 follow-up that proposes or refines a mechanism sets
+`mechanism-mission: yes` and requires a `## Novelty` section; every D2
+packet requires the seven labeled lines under `## Research design contract`
+in `DESIGN.md`. Field lists and verdict vocabulary are canonical in
+`config/researcher.toml`; design-side semantics live in
+`references/ml-experiment.md`. The Stop hook audits label presence when
+`## Novelty` exists - it does not judge scientific quality.
 
 If neither web search nor an MCP server is available, `researcher` writes a
 `RESEARCH BLOCKED` note and the main thread raises a user checkpoint with the
@@ -334,7 +340,8 @@ opinion of the design - a persuaded reviewer is a broken reviewer.
   verified against a live install), so until verified, run
   `python <repo>/.codex/hooks/subagent_audit.py --audit <agent>` after each
   write-capable turn as the primary safety net - same snapshot, same
-  allow-lists, plus a duplicate S/E-ID scan; exit 1 with the violation list
+  allow-lists, plus a duplicate S/E-ID scan (also run on the live
+  SubagentStop path when the hook fires); exit 1 with the violation list
   on a breach. Known honest limit: the audit is file-granular - an agent that
   owns a file can rewrite that file's history undetected; the final
   inspection and completion gates re-derive from content, which is the
@@ -382,6 +389,11 @@ Rules:
   rounds has a problem no fourth round will fix; it goes to the user.
 - `synthesizer` and redesign run only when a round contains REVISE - a
   unanimous round costs nothing beyond the four reviewer calls.
+- **FV5 keep/fold:** keep `synthesizer` until
+  `docs/field-validation.md` FV5 is measured. Fold into the main thread
+  only when, across ≥3 real REVISE rounds, the gate never overrides
+  synthesis and rejected objections never resurface; any divergence keeps
+  the isolated call. Until then, do not delete the agent to "save a call".
 - After a user checkpoint (BLOCK or round-3 failure), the round counter
   resets ONLY when the reply materially changed the brief or the design
   constraints (new input, relaxed scope, an accepted named risk); a bare
@@ -515,9 +527,8 @@ may use the string `review: PASS`.
    implementation subgoals (`SG1..SGn`) from the accepted draft's subgoal
    plan and insert them before FINAL in `PLAN.md`, and log the
    design-complete journal entry (accepted-version, residual risks, any
-   contract deltas). If the design materially changed the contract's terms -
-   budget, scope, an accepted named risk the user has not seen - that is a
-   user checkpoint before implementation cycles; otherwise proceed.
+   contract deltas). Then apply the **hard re-Agree** rule below before any
+   implementation cycle.
 5. Plan gate: fires now, on the DERIVED plan against the approved contract
    (small missions skip it per the tiering rule; standard/high-risk always
    run it here, where there is a real plan to attack). The `## PLAN GATE`
@@ -532,6 +543,30 @@ may use the string `review: PASS`.
    invalidates the accepted design. If yes, run one debate round (all four
    reviewers) on the amended design before the fix cycle; if no, record the
    reason and proceed.
+
+### Hard re-Agree (contract delta after design)
+
+Consent to spend is not consent to a still-unknown solution space. After the
+design phase (or any mid-loop redesign that changes the problem shape),
+compare the accepted draft against `BRIEF.md`. A **hard re-Agree** is
+mandatory - not a soft "materially changed?" glance - when any of these
+moved:
+
+1. **Success criterion** - command, metric, threshold, or done-when.
+2. **Mechanism claim** - the chosen module/loss/training signal (or its
+   kill criteria / ablation matrix on a mechanism mission).
+3. **Budget or blast radius** - cycle/GPU/full-run caps, protected paths,
+   irreversible actions, or an accepted named risk the user has not seen.
+
+Procedure: present a one-screen delta (old line → new line for each change),
+ask for a clean `"go"` (or corrected lines) before plan gate / DAOR. Log
+`## RE-AGREE <ISO-date>` in `JOURNAL.md` quoting the user's reply. If none
+of the three moved, log `## CONTRACT UNCHANGED <ISO-date>` with a one-line
+justification and proceed - silence is not the audit trail.
+
+A mid-loop redesign that trips the same three triggers suspends
+implementation, updates `BRIEF.md` only after the new `"go"`, and re-runs
+plan gate on the derived plan.
 
 The Stop hook enforces the design gate mechanically: when `PLAN.md` exists
 *and* `DESIGN.md` exists, `DESIGN.md`'s latest `## FINAL DESIGN INSPECTION`

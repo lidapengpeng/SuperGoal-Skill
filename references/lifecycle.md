@@ -108,7 +108,8 @@ Backlog entry template (note: no checkbox):
 
 ## Park (incomplete mission, superseded)
 
-Every open mission has PLAN.md and JOURNAL.md from Agree, so this one
+`JOURNAL.md` may already exist from the Tier note (created before Agree);
+Agree always ensures `PLAN.md` and `JOURNAL.md` both exist. This one
 procedure covers all tiers - including a standard/high-risk mission parked
 mid-design (also delete the write-audit baseline in that case).
 

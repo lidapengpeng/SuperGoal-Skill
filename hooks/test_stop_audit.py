@@ -15,6 +15,7 @@ from stop_audit import (
     plan_problems,
     pending_runs,
     design_inspection_problems,
+    mechanism_contract_problems,
     stale_final_gate_problems,
 )
 
@@ -174,6 +175,46 @@ with tempfile.TemporaryDirectory() as _d:
     )
     assert design_inspection_problems(dp, plan_present=True) == [], \
         "re-inspection pass must clear the earlier failed block"
+
+# --- mechanism_contract_problems (presence only) -------------------------
+with tempfile.TemporaryDirectory() as _d:
+    dp = Path(_d)
+    # no Novelty -> skip even if DESIGN lacks the contract
+    (dp / "DESIGN.md").write_text("## DESIGN DRAFT v1\n- approach: x\n", encoding="utf-8")
+    assert mechanism_contract_problems(dp) == [], \
+        "non-mechanism missions (no ## Novelty) must not be blocked"
+    (dp / "RESEARCH.md").write_text(
+        "## Claims\n### E001\n- claim: x\n## Novelty\n- verdict: possibly-novel\n",
+        encoding="utf-8",
+    )
+    missing_heading = mechanism_contract_problems(dp)
+    assert missing_heading and "Research design contract" in missing_heading[0], \
+        "Novelty without contract heading must block"
+    (dp / "DESIGN.md").write_text(
+        "## DESIGN DRAFT v1\n"
+        "## Research design contract\n"
+        "1. failure-mode: boundary bleed (E014)\n"
+        "2. tensor-mechanism: add B_geo to attn logits\n"
+        "3. equation: softmax(QK^T/sqrt(d)+B) V\n"
+        "4. gradient-intuition: n/a - not a loss term\n"
+        "5. novelty: possibly-novel (S010)\n"
+        "6. ablation-matrix: baseline; +module; param-matched control\n"
+        "7. kill-criteria: no gain vs matched control on proxy\n",
+        encoding="utf-8",
+    )
+    assert mechanism_contract_problems(dp) == [], "complete seven labels must pass"
+    (dp / "DESIGN.md").write_text(
+        "## DESIGN DRAFT v1\n"
+        "## Research design contract\n"
+        "1. failure-mode: x\n"
+        "2. tensor-mechanism: y\n"
+        "3. equation: z\n",
+        encoding="utf-8",
+    )
+    partial = mechanism_contract_problems(dp)
+    assert partial and "missing labeled line" in partial[0], \
+        "partial contract must name missing labels"
+    assert "kill-criteria" in partial[0]
 
 # --- find_supergoal ------------------------------------------------------
 with tempfile.TemporaryDirectory() as _d:

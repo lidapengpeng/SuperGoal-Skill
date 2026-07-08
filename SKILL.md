@@ -135,12 +135,15 @@ The canonical tier definitions - every other file points here:
   minimum of 1 debate round.
 
 Recon mostly answers this; it is a judgment, not a question charged against
-Clarify's budget - but not a silent one: log a `## TIER` note in
-`JOURNAL.md` answering the criteria, and carry the tier plus its estimated
-design cost (design cycles, research scale) as a line in the Agree contract,
-so the user approves the spend before any of it happens. The design phase
-itself is `references/super-agent-cluster.md`'s route, entered at the start
-of the Loop - after Agree, under the contract.
+Clarify's budget - but not a silent one. Create `.supergoal/JOURNAL.md` at
+Tier if it does not yet exist (Agree has not run), log a `## TIER` note
+answering the criteria, and carry the tier plus its estimated design cost
+(design cycles, research scale) as a line in the Agree contract, so the user
+approves the spend before any of it happens. The design phase itself is
+`references/super-agent-cluster.md`'s route, entered at the start of the
+Loop - after Agree, under the contract. After design, a hard re-Agree fires
+when success criterion, mechanism claim, or budget/blast-radius moved
+(`references/super-agent-cluster.md`).
 
 ## Clarify
 
@@ -219,17 +222,19 @@ rounds, `synthesizer` adjudicating any REVISE), and `reviewer` (design mode)
 runs an independent final inspection - all journaled, all under the
 contract's design budget, file-backed in RESEARCH/DESIGN/DEBATE.md and
 resumable at any step. On `implementation-ready: yes` the implementation
-subgoals are derived into PLAN.md and the plan gate attacks the derived plan
-(see Gate). Small missions skip straight to the cycles.
+subgoals are derived into PLAN.md; hard re-Agree runs if success criterion,
+mechanism claim, or budget/blast-radius moved; then the plan gate attacks
+the derived plan (see Gate). Small missions skip straight to the cycles.
 
 The first implementation cycle is Observe-0: run the baseline eval and
 record baseline metrics before any change (greenfield: the failing or absent
 result is the baseline). Then repeat, one subgoal at a time, one cycle at a
 time:
 
-1. **Design** - falsifiable hypothesis: the bottleneck, the single variable
-   to change, the verify command, the expected result, the failure
-   criterion. No falsifiable expectation, no action.
+1. **Design** (per-cycle hypothesis, not the cluster design phase) -
+   falsifiable hypothesis: the bottleneck, the single variable to change,
+   the verify command, the expected result, the failure criterion. No
+   falsifiable expectation, no action.
 2. **Act** - implement that one change. ML: smoke-test first (small subset,
    few steps, low resolution) before any full training run; record
    checkpoint and resume info for long runs.

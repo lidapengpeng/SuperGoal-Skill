@@ -72,10 +72,13 @@ fabricating a conclusion before the metrics exist.
 
 Applies whenever the contribution is a mechanism claim. A design draft - or
 any mid-loop redesign - proposing one is INVALID until it states all seven
-below; the debate reviewers attack them and the plan gate re-checks the
-derived subgoals against them. This is the anti-laziness gate: it converts
-"be innovative" into a constrained search the model cannot answer with a
-buzzword.
+below under a `## Research design contract` heading with the labeled lines
+in `config/designer.toml` (failure-mode, tensor-mechanism, equation,
+gradient-intuition, novelty, ablation-matrix, kill-criteria). The Stop hook
+checks **presence** of those labels when `RESEARCH.md` has a `## Novelty`
+section; debate reviewers attack substance; the plan gate re-checks derived
+subgoals. This is the anti-laziness gate: it converts "be innovative" into a
+constrained search the model cannot answer with a buzzword.
 
 1. **Failure mode** - the observed, evidenced failure the mechanism
    addresses: an error analysis, a cited claim (E-ID), or a journal/

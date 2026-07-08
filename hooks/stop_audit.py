@@ -17,7 +17,7 @@ Blocks (decision: block) when any of these hold:
    `## FINAL DESIGN INSPECTION` section logging `implementation-ready: yes`.
    Keyed on DESIGN.md presence: small missions never create DESIGN.md, so
    this check cannot fire for them. It fires both on a mid-design pause
-   (design work remains - correct nudge) and on a checked DESIGN box without
+   (design work remains - correct nudge) and a checked DESIGN box without
    a real inspection. The LAST inspection section wins - re-inspection after
    a REVISE appends, and an old failed block must not shadow a later pass.
 7. BRIEF.md exists but PLAN.md does not: Agree writes PLAN.md first, then
@@ -29,6 +29,12 @@ Blocks (decision: block) when any of these hold:
 9. A `## REOPEN <date>` entry postdates the newest `## FINAL GATE <date>`
    while FINAL is checked: a reopened mission must earn a fresh final gate,
    and the stale one must not cover it.
+10. Mechanism-mission presence (not scientific quality): when RESEARCH.md
+    has a `## Novelty` section, DESIGN.md's latest `## DESIGN DRAFT` must
+    contain a `## Research design contract` block with the seven labeled
+    lines (failure-mode, tensor-mechanism, equation, gradient-intuition,
+    novelty, ablation-matrix, kill-criteria). Missing labels block Close.
+    Absence of `## Novelty` skips this check (non-mechanism missions).
 
 Anti-gaming notes: `review: PASS` only counts in its prescribed
 list-item form at line start (`- review: PASS`), so quoted text - including
@@ -195,6 +201,61 @@ def pending_runs(experiments_text):
     ]
 
 
+# Seven labeled lines required under ## Research design contract when the
+# mission is mechanism-shaped (RESEARCH.md has ## Novelty). Presence only.
+MECHANISM_CONTRACT_LABELS = (
+    "failure-mode",
+    "tensor-mechanism",
+    "equation",
+    "gradient-intuition",
+    "novelty",
+    "ablation-matrix",
+    "kill-criteria",
+)
+
+
+def _has_novelty_section(research_text):
+    return bool(re.search(r"(?m)^##\s+Novelty\b", research_text))
+
+
+def mechanism_contract_problems(supergoal):
+    """Presence audit for the seven-point research design contract.
+
+    Trigger: RESEARCH.md contains `## Novelty` (mechanism missions write it;
+    others do not). Then DESIGN.md must include a Research design contract
+    heading with all seven labels. Does not judge content quality - only that
+    the labels exist so debate has something to attack.
+    """
+    research = supergoal / "RESEARCH.md"
+    design = supergoal / "DESIGN.md"
+    if not (research.is_file() and design.is_file()):
+        return []
+    if not _has_novelty_section(read_text(research)):
+        return []
+    design_text = read_text(design)
+    if not re.search(r"(?im)^#{2,3}\s+Research design contract\b", design_text):
+        return [
+            "RESEARCH.md has '## Novelty' (mechanism mission) but"
+            " DESIGN.md has no '## Research design contract' section -"
+            " the seven labeled lines are required before Close"
+        ]
+    missing = [
+        label
+        for label in MECHANISM_CONTRACT_LABELS
+        if not re.search(
+            r"(?im)^\s*(\d+\.\s*)?(- )?{}:\s*\S".format(re.escape(label)),
+            design_text,
+        )
+    ]
+    if missing:
+        return [
+            "mechanism research design contract is missing labeled line(s):"
+            " {} - see config/designer.toml 4b / references/ml-experiment.md"
+            .format(", ".join(missing))
+        ]
+    return []
+
+
 def design_inspection_problems(supergoal, plan_present):
     """Standard/high-risk missions must clear the design inspection.
 
@@ -259,6 +320,7 @@ def main():
         )
 
     problems.extend(design_inspection_problems(supergoal, plan.is_file()))
+    problems.extend(mechanism_contract_problems(supergoal))
 
     experiments = supergoal / "EXPERIMENTS.md"
     if experiments.is_file():
