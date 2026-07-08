@@ -103,15 +103,17 @@ HEADER line names its `SG<id>` and whose body logs `review: PASS` (FINAL
 against the `## FINAL GATE` section). Body mentions do not count. Drift
 from this format and the hook will refuse to let the session end.
 
-## Cluster missions: design provenance and the leanness gate
+## Standard/high-risk missions: design provenance and the leanness gate
 
-On standard/high-risk missions the Loop does not invent the design cycle by
-cycle. The approach, subgoal plan, and verification plan were authored,
-debated, and inspected before Agree and live in `.supergoal/DESIGN.md`
-(`references/super-agent-cluster.md`); `PLAN.md` was derived from that
-accepted design. DAOR still runs one falsifiable cycle per subgoal - it
-executes the inspected plan, it does not re-open it. A genuinely new subgoal
-discovered mid-mission still passes the scope test below before it is added.
+On standard/high-risk missions the implementation cycles do not invent the
+design cycle by cycle. The Loop OPENS with the design phase
+(`references/super-agent-cluster.md`): the approach, subgoal plan, and
+verification plan are authored, debated, and inspected under the contract's
+design budget, live in `.supergoal/DESIGN.md`, and the implementation
+subgoals in `PLAN.md` are derived from that accepted design. DAOR then runs
+one falsifiable cycle per subgoal - it executes the inspected plan, it does
+not re-open it. A genuinely new subgoal discovered mid-mission still passes
+the scope test below before it is added.
 
 Execution-time leanness is part of the `reviewer` completion gate, not a
 separate call: the reviewer's code dimension includes file-count creep,

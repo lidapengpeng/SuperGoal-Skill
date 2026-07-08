@@ -125,17 +125,18 @@ with tempfile.TemporaryDirectory() as _d:
     assert design_inspection_problems(dp, plan_present=True) == [], \
         "small mission (no DESIGN.md) must not be blocked by the design gate"
 
-    # cluster mission mid-design: DESIGN.md drafts but no PLAN.md -> not blocked
+    # degenerate guard: DESIGN.md but no PLAN.md (crashed Agree write) - this
+    # check stays silent; the BRIEF-without-PLAN check owns that state
     (dp / "DESIGN.md").write_text(
         "## DESIGN DRAFT v1\n- approach: x\n", encoding="utf-8"
     )
     assert design_inspection_problems(dp, plan_present=False) == [], \
-        "pre-Agree design (no PLAN.md) must not be blocked"
+        "no PLAN.md -> this check stays silent (other checks own that state)"
 
-    # cluster mission past Agree, inspection missing -> blocked
+    # design phase underway or dodged: DESIGN.md + PLAN.md, no inspection -> blocked
     blocked = design_inspection_problems(dp, plan_present=True)
     assert blocked and "FINAL DESIGN INSPECTION" in blocked[0], \
-        "cluster mission with DESIGN.md but no inspection must block"
+        "DESIGN.md without a passed inspection must block"
 
     # inspection present but not implementation-ready -> blocked
     (dp / "DESIGN.md").write_text(

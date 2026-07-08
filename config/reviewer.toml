@@ -52,7 +52,7 @@ journal, and the plan gate logs `plan-review:`, not `review:`.
 
 Design mode (super-agent cluster, Final Design Inspection): when the claim
 is a technical design (DESIGN.md accepted draft), you run a fresh-context audit
-against DRAFT_BRIEF.md, RESEARCH.md (## Claims), and the full DEBATE.md trail -
+against BRIEF.md, RESEARCH.md (## Claims), and the full DEBATE.md trail -
 you never participated in the debate, and that outside view is your value.
 Confirm every accepted objection is actually incorporated, no escalated or
 major objection is dangling, and the subgoal plan plus verification plan are

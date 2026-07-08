@@ -81,11 +81,6 @@ must be pinned before Agree, even when every other question is skipped:
    high-risk - SKILL.md's Tier check owns that definition). ML adds
    GPU-hours and full-run caps.
 
-Clarify's final message additionally ends with one non-question line naming
-the tier and, for standard/high-risk missions, the estimated research scale
-("standard tier; ~2 survey questions, roughly 60-100 sources") - the user
-sees the spend coming before any research starts.
-
 Pin each by asking, or - when clearly inferable - by writing the default
 into the assumption ledger and having the user confirm it at Agree. Silent
 defaults are forbidden for these two.
@@ -158,10 +153,7 @@ Rules:
 - `[low]` entries are presented at Agree for one-shot confirmation - the
   user corrects any line or says "go".
 - The ledger is copied into `BRIEF.md`; a wrong confirmed assumption is a
-  shared decision, a wrong silent assumption is your bug. On standard/high-risk
-  (cluster) missions Clarify's outputs land in `.supergoal/DRAFT_BRIEF.md`
-  instead, which feeds Research and Design and is promoted to `BRIEF.md` at
-  Agree (`references/super-agent-cluster.md`).
+  shared decision, a wrong silent assumption is your bug.
 
 ## Agree message template
 
@@ -177,11 +169,13 @@ checkpoint - never start the Loop before it is answered.
 
 ## Plan sketch
 1. SG1 <outcome> - verify: `<command>`
-2. SG2 ...          (riskiest first; ML: dataset + baseline first)
+2. SG2 ...          (riskiest first; ML: dataset + baseline first;
+                     provisional on standard/high-risk tiers - the design
+                     phase derives the real subgoals)
 
-## Final design (standard/high-risk missions only)
-<one-paragraph summary of DESIGN.md's accepted-version; the plan sketch above
-is that design's subgoal plan, not a fresh guess>
+## Tier (standard/high-risk missions only)
+<tier + why, and the design cost this approves: "standard - ~2 survey
+questions, roughly 60-100 sources, 1-3 debate rounds before implementation">
 
 ## Boundaries
 <allowed areas, protected paths, dependency policy, checkpoint policy>
@@ -189,9 +183,6 @@ is that design's subgoal plan, not a fresh guess>
 ## Assumptions (correct any line)
 - [low] ...
 - [low] ...
-
-## Residual risks (standard/high-risk missions only)
-- <accepted risks the final design inspection carried forward>
 
 ## Budget
 <N DAOR cycles before check-in; ML: GPU-hours / full runs>
@@ -202,16 +193,12 @@ is that design's subgoal plan, not a fresh guess>
 Reply "go" to start, or correct any line above.
 ```
 
-The two design sections are present only on cluster missions, filled from the
-inspected `DESIGN.md`; small missions omit them.
+The Tier section is present only on standard/high-risk missions - one "go"
+approves the design spend along with the scope; small missions omit it.
 
 After "go", create the same content as one `/goal` command (`codex.md`).
 `/goal` is the required mission contract layer for SuperGoal; if goals are
 not enabled, stop and instruct the user to enable them before the Loop starts.
-
-On cluster missions, "go" is also the promotion point - the exact crash-safe
-order and the superseded-draft note live in
-`references/super-agent-cluster.md`.
 
 ## BRIEF.md template
 

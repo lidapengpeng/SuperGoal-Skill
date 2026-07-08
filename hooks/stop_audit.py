@@ -13,17 +13,16 @@ Blocks (decision: block) when any of these hold:
 4. The FINAL line is checked but JOURNAL.md has no `## FINAL GATE` section
    containing `review: PASS`.
 5. EXPERIMENTS.md has PENDING runs.
-6. A cluster mission (DESIGN.md present) that has passed Agree (PLAN.md
-   present) has no `## FINAL DESIGN INSPECTION` section logging
-   `implementation-ready: yes`. Keyed on DESIGN.md presence, not PLAN.md
-   alone: small missions never create DESIGN.md, so this check does not fire
-   for them; sessions ending pre-Agree (no PLAN.md) are never blocked by it.
-   The LAST inspection section wins - re-inspection after a REVISE appends
-   or overwrites, and an old failed block must not shadow a later pass.
-7. BRIEF.md exists but PLAN.md does not: a mission that passed Agree always
-   has both (the promotion writes PLAN.md first), so this state is either a
-   crashed promotion or a dodge that would disable every other check.
-   Pre-Agree states (DRAFT_BRIEF.md only) are unaffected.
+6. A standard/high-risk mission (DESIGN.md present alongside PLAN.md) has no
+   `## FINAL DESIGN INSPECTION` section logging `implementation-ready: yes`.
+   Keyed on DESIGN.md presence: small missions never create DESIGN.md, so
+   this check cannot fire for them. It fires both on a mid-design pause
+   (design work remains - correct nudge) and on a checked DESIGN box without
+   a real inspection. The LAST inspection section wins - re-inspection after
+   a REVISE appends, and an old failed block must not shadow a later pass.
+7. BRIEF.md exists but PLAN.md does not: Agree writes PLAN.md first, then
+   BRIEF.md, so this state is either a crashed Agree write or a dodge that
+   would disable every other check.
 8. The FINAL line is marked blocked (`- [!] FINAL`): every other box may be
    legitimately blocked, but the final gate has no legitimate blocked state -
    allowing it would be a one-character zero-gate session end.
@@ -197,14 +196,14 @@ def pending_runs(experiments_text):
 
 
 def design_inspection_problems(supergoal, plan_present):
-    """Cluster missions must clear the final design inspection before Close.
+    """Standard/high-risk missions must clear the design inspection.
 
-    Fires only when the mission both passed Agree (PLAN.md present) and is a
-    cluster mission (DESIGN.md present). Small missions never create DESIGN.md,
-    so an absent DESIGN.md is not a violation - that is what keeps tiering
-    intact. A cluster mission reaches PLAN.md only after W7 wrote the
-    inspection, so a present DESIGN.md without a passed inspection is a real
-    gap, not a mid-design pause (those have no PLAN.md yet).
+    Fires when PLAN.md and DESIGN.md both exist and the LATEST inspection
+    block does not log implementation-ready: yes. Small missions never
+    create DESIGN.md, so an absent DESIGN.md is not a violation - that is
+    what keeps tiering intact. Because the design phase runs inside the
+    mission (after Agree), this correctly blocks both a mid-design pause
+    (design work remains) and a checked DESIGN box with no real inspection.
     """
     design = supergoal / "DESIGN.md"
     if not (plan_present and design.is_file()):
@@ -255,7 +254,7 @@ def main():
     elif (supergoal / "BRIEF.md").is_file():
         problems.append(
             "BRIEF.md exists but PLAN.md does not - a mission past Agree"
-            " always has both (promotion writes PLAN.md first); re-derive"
+            " always has both (Agree writes PLAN.md first); re-derive"
             " PLAN.md from the agreed contract before ending the session"
         )
 

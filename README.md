@@ -1,6 +1,6 @@
 <div align="center">
 
-# ✨ SuperGoal
+# SuperGoal
 
 **An upgraded `/goal` for Codex CLI — it cannot call work "done" until the evidence is on disk.**
 
@@ -9,7 +9,7 @@
 ![Maker/checker review](https://img.shields.io/badge/maker%2Fchecker-review-8b5cf6?style=flat-square)
 ![10 agents](https://img.shields.io/badge/agents-10-f97316?style=flat-square)
 
-`$supergoal <goal>` &nbsp;→&nbsp; recon → contract → design debate → evidence loop → adversarial review → verified close
+`$supergoal <Description-Your-Task>` &nbsp;→&nbsp; recon → contract → design debate → evidence loop → adversarial review → verified close
 
 <sub>🌐 English · <a href="README.zh-CN.md">中文</a></sub>
 
@@ -24,11 +24,11 @@ iterates in falsifiable Design–Act–Observe–Reason cycles, and a separate
 reviewer agent plus a mechanical Stop hook block the session from ending
 while any claim lacks its logged proof.
 
-✅ **Use it for** debugging, refactoring, risky features, services and sites,
+**Use it for** debugging, refactoring, risky features, services and sites,
 crawlers and data pipelines, model training, research reproduction.
-⏭️ **Skip it for** one-line answers — it will refuse them anyway.
+**Skip it for** one-line answers — it will refuse them anyway.
 
-## 🤔 Why not just `/goal`?
+## Why not just `/goal`?
 
 | | plain `/goal` | SuperGoal |
 | --- | --- | --- |
@@ -39,80 +39,69 @@ crawlers and data pipelines, model training, research reproduction.
 | "Done" | the model judges "achieved" | Stop hook cross-checks every checked box against logged verdicts |
 | Memory | starts from zero | lessons, plans, and evidence persist in `.supergoal/` files |
 
-## 🧭 How a mission flows
+## How a mission flows
 
 ```mermaid
 flowchart TD
-  A["$supergoal &lt;goal&gt;"] --> B["Recon + tier check"]
-  B -->|small| C["Clarify → Agree"]
-  B -->|standard / high-risk| D["Research → design draft →
+  A["$supergoal &lt;Description-Your-Task&gt;"] --> B["Recon + tier check"]
+  B --> C["Clarify — elaborate intent, pin success criterion + budget"]
+  C --> D["Agree — one 'go' approves scope AND spend"]
+  D --> E["/goal contract"]
+  E --> F{"tier"}
+  F -->|standard / high-risk| G["Design phase: research → draft →
   4-reviewer debate → inspection"]
-  D --> C
-  C --> E["/goal contract"]
-  E --> F["DAOR cycle"]
-  F --> G{"reviewer gate"}
-  G -->|FAIL| F
-  G -->|PASS| H{"all subgoals?"}
-  H -->|no| F
-  H -->|yes| I["final gate → verified close"]
+  F -->|small| H["DAOR cycles"]
+  G --> H
+  H --> I{"reviewer gate"}
+  I -->|FAIL| H
+  I -->|PASS| J{"all subgoals?"}
+  J -->|no| H
+  J -->|yes| K["final gate → verified close"]
 
   classDef gate fill:#7f1d1d,stroke:#fca5a5,color:#fff;
   classDef design fill:#581c87,stroke:#c084fc,color:#fff;
-  class G gate;
-  class D design;
+  class I gate;
+  class G design;
 ```
 
-Small missions stay lean (three agents, zero ceremony). Standard and
-high-risk missions earn a design harness before any code: a `researcher`
-builds cited claims (community-first for troubleshooting, literature- or
-docs-first for surveys), a `designer` drafts, four differentiated reviewers
-debate it — completeness, failure modes, verifiability, leanness — and a
-fresh-eyes inspection signs off. High-risk missions must survive at least
-two debate rounds. The tier is decided once, logged, and announced with its
-research cost before anything is spent.
+Clarify's whole job is elaborating your intent — the questions the repo
+can't answer, the success criterion, the budget. One "go" at Agree approves
+scope and spend together; nothing autonomous and expensive runs before it.
+Small missions then go straight to work (three agents, zero ceremony).
+Standard and high-risk missions open the loop with a design phase before
+any code — a `researcher` builds cited claims (community-first for
+troubleshooting, literature- or docs-first for surveys), a `designer`
+drafts, four differentiated reviewers debate it (completeness, failure
+modes, verifiability, leanness), and a fresh-eyes inspection signs off —
+all journaled, all inside the contract's budget. High-risk missions must
+survive at least two debate rounds.
 
-## 💬 What a session looks like
+## What a session looks like
 
 ```text
-You:  $supergoal How can I improve SAM 3 for identifying buildings in remote sensing imagery?
+You:  $supergoal speed up our test suite, CI is painfully slow
 
-It:   Recon: segmentation repo found; GeoTIFF tiling, SAM 3 adapters, building
-      masks, and an eval script reporting IoU/F1 by AOI.
-      1. Success criterion?
-         A. +5 building F1 on a cross-city holdout, with no precision drop > 1 point (recommended)
-         B. +3 building mIoU
-         C. yours
-      2. Allowed work?
-         A. prompts, adapters, loss, sampling, and augmentation only (recommended)
-         B. full fine-tune
-         C. architecture changes allowed
-      3. Evidence budget?
-         A. one reproduced baseline + two ablations (recommended)
-         B. quick smoke experiment only
-         C. full sweep
+It:   Recon: pytest + tox; CI ~14 min; 3 test files take 70% of the time.
+      1. Success criterion?  A. CI < 5 min on the runner (recommended)  B. < 8 min  C. yours
+      2. May I add pytest-xdist? (high-risk to assume)  A. Yes  B. No
 
-You:  1A 2A 3A
+You:  1A 2A
 
-It:   Objective: improve SAM 3 building extraction for remote sensing imagery.
-      Verify: `python evaluate.py --split cross_city --class building`
-      shows building F1 improves by >= 0.05 and precision drops by <= 0.01.
-      Plan: SG1 reproduce baseline → SG2 inspect false positives/negatives →
-      SG3 run adapter/data ablations → SG4 confirm best variant → FINAL gate
-      Assumptions: [low] labels are usable; [medium] GPU budget covers 3 runs.
+It:   Objective: CI wall-clock < 5 min · verify: `time pytest -q -n auto` < 300s
+      Plan: SG1 baseline profile → SG2 xdist + fixture isolation → SG3 cache → FINAL gate
+      Assumptions: [low] CI config editable · Budget: 10 cycles
       Reply "go" to start.
 
 You:  go
 
-It:   [/goal created · .supergoal/PLAN.md + BRIEF.md written]
-      [Research: remote-sensing segmentation papers and repo docs cited]
-      [C1..C5: baseline → hypothesis → run command → metric table → reviewer verdict]
-      Final report: cross-city F1 0.712 → 0.768, precision unchanged;
-      ablation table, changed files, and reviewer PASS are linked from JOURNAL.md.
+It:   [/goal created · plan gate GO · baseline 14m02s quoted from CI log]
+      [C1..C6: hypothesis → change → quoted result → reviewer verdict, journaled]
+      Final report: 14m02s → 4m41s, evidence per subgoal, reviewer PASS.
 ```
 
 A precise request skips the questions: recon, one Agree message, "go".
 
-## 📦 Install
+## Install
 
 ```bash
 # global (all projects)
@@ -135,17 +124,14 @@ Setup runs automatically on first invocation and installs the rest — but it
 `config/*.toml` and the two model keys in `config/config.toml.snippet`, then
 recopy into `<repo>/.codex/`. Nothing else references a model name.
 
-## 🗂️ What lives on disk
-
-SuperGoal stores mission files directly in the current project under
-`.supergoal/`.
+## What lives on disk
 
 | File | Role |
 | --- | --- |
 | `.supergoal/BRIEF.md` | intent — objective, boundaries, success criterion, assumptions |
 | `.supergoal/PLAN.md` | claims — subgoal checkboxes the Stop hook machine-reads |
 | `.supergoal/JOURNAL.md` | evidence — append-only cycle ledger with quoted results and verdicts |
-| `.supergoal/DRAFT_BRIEF / RESEARCH / DESIGN / DEBATE.md` | design harness (standard/high-risk only) |
+| `.supergoal/RESEARCH / DESIGN / DEBATE.md` | design phase (standard/high-risk only) |
 | `.supergoal/EXPERIMENTS.md` | ML run ledger — PENDING rows block completion |
 | `.supergoal/PROJECT.md` · `BACKLOG.md` · `archive/` | lessons that compound, parked ideas, finished missions |
 
@@ -153,7 +139,7 @@ Every mission is resumable from these files alone — kill the session at any
 point and the router infers where to continue. Chat history is never the
 state.
 
-## 🗺️ Repository map
+## Repository map
 
 | Path | What it is |
 | --- | --- |
@@ -163,7 +149,7 @@ state.
 | `hooks/` | Stop + SubagentStop audits, each with an assert-based self-test |
 | `docs/field-validation.md` | the nine measurements the first real missions must take |
 
-## ❓ FAQ
+## FAQ
 
 **Why does it ask questions? Other tools just start.**
 Guessing an ambiguous success criterion is how work gets marked done without
@@ -183,7 +169,7 @@ Both supported — the hook command needs the right shell variant
 ([`references/codex.md`](references/codex.md)); repos without git use an
 absolute hook path.
 
-## ⚠️ Honest limits
+## Honest limits
 
 - The Stop hook checks ledger consistency, not scientific validity — the
   reviewer gates and quoted-evidence rules exist for that.

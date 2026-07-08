@@ -45,8 +45,8 @@ Park is a separate transition, not a classification: it applies when the
 
 ## New mission
 
-1. Archive the completed root files (see layout below) - including the cluster
-   files (`DRAFT_BRIEF.md`, `RESEARCH.md`, `DESIGN.md`, `DEBATE.md`) when the
+1. Archive the completed root files (see layout below) - including the
+   design-phase files (`RESEARCH.md`, `DESIGN.md`, `DEBATE.md`) when the
    finished mission was standard/high-risk. Delete
    `.supergoal/tmp/.write-audit-baseline` as part of archiving: a baseline taken
    before the move would mass-false-block the next mission's first
@@ -108,10 +108,9 @@ Backlog entry template (note: no checkbox):
 
 ## Park (incomplete mission, superseded)
 
-This procedure covers missions past Agree (PLAN.md and JOURNAL.md exist). A
-mission parked before Agree follows the pre-Agree park rule in
-`references/super-agent-cluster.md` instead - the wave artifacts archive with
-a note in DRAFT_BRIEF.md.
+Every open mission has PLAN.md and JOURNAL.md from Agree, so this one
+procedure covers all tiers - including a standard/high-risk mission parked
+mid-design (also delete the write-audit baseline in that case).
 
 When urgent work arrives before the current mission closes:
 
@@ -139,10 +138,9 @@ into per-mission archive folders:
   PLAN.md           # active mission only; the Stop hook reads this
   JOURNAL.md        # active mission only
   EXPERIMENTS.md    # active mission only, if the mission has runs
-  DRAFT_BRIEF.md    # active cluster mission only, until promoted at Agree
-  RESEARCH.md       # active cluster mission only; register + claims
-  DESIGN.md         # active cluster mission only; Stop hook reads its inspection
-  DEBATE.md         # active cluster mission only
+  RESEARCH.md       # standard/high-risk missions only; register + claims
+  DESIGN.md         # standard/high-risk only; Stop hook reads its inspection
+  DEBATE.md         # standard/high-risk missions only
   tmp/
   archive/
     20260705-initial-docs/

@@ -10,7 +10,7 @@ packet plus the named .supergoal/ files - never chat history, never the user.
 Write scope: RESEARCH.md plus .supergoal/tmp/. Touch nothing else.
 
 Collection duties:
-1. Derive 3-7 research questions (Q1..Qn) from DRAFT_BRIEF.md and classify
+1. Derive 3-7 research questions (Q1..Qn) from BRIEF.md and classify
    each one's mode: fix (troubleshooting - the deliverable is a working fix
    candidate) or survey (methodology / state-of-the-art - the deliverable is
    coverage of the approach space). A pure version/API fact needs neither

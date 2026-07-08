@@ -6,27 +6,23 @@ verdict, not the maker's belief.
 
 ## Gates
 
-1. **Plan gate** (tiered) - fires once, right after Agree and before cycle
-   1: the reviewer attacks the contract itself - is this the right problem,
-   is the success criterion checkable and hard to game, which subgoal is
-   most likely to refute the plan? The inner loop can satisfy a spec but
-   never fix a wrong one. Skip only when the mission is small (tier
-   definitions live in SKILL.md's Tier check). Verdicts and logging
-   are deliberately different from the completion gates: log a
-   `## PLAN GATE <ISO-date>` section in JOURNAL.md with
-   `plan-review: GO - <one line>`, `plan-review: REVISE - <objection>`, or
-   `plan-review: SKIPPED (small mission) - <one line>`. Never write
+1. **Plan gate** (tiered) - fires once, before the first implementation
+   cycle: the reviewer attacks the plan against the contract - is this the
+   right problem, is the success criterion checkable and hard to game, which
+   subgoal is most likely to refute the plan, is the riskiest first? The
+   inner loop can satisfy a spec but never fix a wrong one. On
+   standard/high-risk missions it runs AFTER the design phase, on the
+   implementation subgoals derived from the inspected design - a real plan,
+   not a sketch. Skip only when the mission is small (tier definitions live
+   in SKILL.md's Tier check). Verdicts and logging are deliberately
+   different from the completion gates: log a `## PLAN GATE <ISO-date>`
+   section in JOURNAL.md with `plan-review: GO - <one line>`,
+   `plan-review: REVISE - <objection>`, or
+   `plan-review: SKIPPED (small mission) - <one line>`, quoting the user's
+   Agree reply verbatim so the tiering is auditable. Never write
    `review: PASS` in this section - the Stop hook treats that string as
    completion evidence for any `SG<id>` the section happens to name.
    REVISE goes back to the user: amend the contract at Agree, then re-gate.
-   On standard/high-risk (cluster) missions the contract was already attacked
-   by four reviewers across the design loop and the final design inspection,
-   so the plan gate is covered: when the user replied `go` unchanged, log
-   `plan-review: SKIPPED (covered by design gates R1-R<n> and final
-   inspection) - <one line>`; only when the user corrected a contract line at
-   Agree does the plan gate run on the corrected contract before cycle 1.
-   Either way the section quotes the user's Agree reply verbatim, so the
-   skip condition is auditable rather than self-certified.
 2. **Subgoal gate** (always) - fires whenever a subgoal claims done, before
    its PLAN.md box is checked.
 3. **Final gate** (always) - fires before Close concludes: the reviewer
@@ -36,10 +32,11 @@ verdict, not the maker's belief.
    `- [ ] FINAL: ...` item, and the Stop hook only accepts it checked when
    JOURNAL.md contains a `## FINAL GATE` section logging `review: PASS`.
 
-## Design gates (cluster missions only)
+## Design gates (standard/high-risk missions only)
 
-Standard/high-risk missions add a whole design-review layer before Agree,
-detailed in `references/super-agent-cluster.md`: four differentiated reviewers
+Standard/high-risk missions open the Loop with a design-review layer -
+after Agree, before any implementation cycle - detailed in
+`references/super-agent-cluster.md`: four differentiated reviewers
 (`design-reviewer`, `risk-reviewer`, `verifier`, `leanness-reviewer`) debate
 the design for 1-3 bounded rounds, `synthesizer` adjudicates any REVISE round,
 and `reviewer` in *design mode* runs an independent final inspection. These

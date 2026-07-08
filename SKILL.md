@@ -55,13 +55,13 @@ Deep detail lives next to this file; read each when its phase begins:
 Run Setup as an idempotent preflight on every `$supergoal` invocation, then
 route by durable state on disk, never by chat memory:
 
-- No `.supergoal/` directory: Setup, then Recon, then a tier check (below).
-  Small missions run Clarify, Agree, Loop, Close in order. Standard/high-risk
-  missions insert the design cluster (Research, Evidence, Design loop, Final
-  design inspection) between Clarify and Agree
+- No `.supergoal/` directory: Setup, then Recon, then a tier check (below),
+  then Clarify, Agree, Loop, Close in order for every tier. Standard and
+  high-risk missions open the Loop with the design phase - research, design
+  draft, reviewer debate, final inspection - before any implementation cycle
   (`references/super-agent-cluster.md`). Gate is not its own sequential step:
-  the plan gate runs at the start of Loop, a subgoal gate runs inside every
-  cycle, and the final gate runs right before Close
+  the plan gate runs before the first implementation cycle, a subgoal gate
+  runs inside every cycle, and the final gate runs right before Close
   (`references/adversarial-review.md`).
 - `.supergoal/` exists and the mission is open (an incomplete phase remains):
   read `BRIEF.md`, `PLAN.md`, the tail of `JOURNAL.md` (and `EXPERIMENTS.md`
@@ -122,26 +122,24 @@ papers) belongs inside the Loop, following the evidence ladder in
 The canonical tier definitions - every other file points here:
 
 - **Small**: the expected diff is small and single-purpose, the verify
-  command is deterministic, and no ML metric is involved. Continue to
-  Clarify, Agree, Loop, Close; the design cluster never runs.
+  command is deterministic, and no ML metric is involved. The design phase
+  never runs.
 - **High-risk**: any of - protected paths or data are in scope; actions are
   irreversible or hard to reverse (migrations, deletes, external
   side-effects); an ML metric is the success criterion; the code area is
-  unfamiliar with weak test coverage. Consequences: the design cluster runs
-  with a minimum of 2 debate rounds, and the default iteration leash is 5
-  cycles (`references/clarify.md`).
-- **Standard**: everything else. The design cluster runs with a minimum of
-  1 debate round.
+  unfamiliar with weak test coverage. Consequences: the Loop opens with the
+  design phase at a minimum of 2 debate rounds, and the default iteration
+  leash is 5 cycles (`references/clarify.md`).
+- **Standard**: everything else. The Loop opens with the design phase at a
+  minimum of 1 debate round.
 
 Recon mostly answers this; it is a judgment, not a question charged against
 Clarify's budget - but not a silent one: log a `## TIER` note in
-`JOURNAL.md` answering the criteria, and state the tier plus the estimated
-research scale in Clarify's final message before any research spend.
-Standard/high-risk missions run the design cluster
-(`references/super-agent-cluster.md`) between Clarify and Agree; that file
-owns the wave route (and the mid-flight escalation rule if a "small" mission
-outgrows the test). Return here at Agree, which consumes the inspected
-design.
+`JOURNAL.md` answering the criteria, and carry the tier plus its estimated
+design cost (design cycles, research scale) as a line in the Agree contract,
+so the user approves the spend before any of it happens. The design phase
+itself is `references/super-agent-cluster.md`'s route, entered at the start
+of the Loop - after Agree, under the contract.
 
 ## Clarify
 
@@ -163,39 +161,28 @@ objective with the fewest questions that actually matter:
 - If the goal is project-sized, carve out the first bounded mission and file
   the rest in `.supergoal/BACKLOG.md` (see `references/lifecycle.md`).
 
-## Cluster (standard/high-risk missions only)
-
-Read `references/super-agent-cluster.md`. Between Clarify and Agree, the
-design harness runs: `researcher` builds the source register and distills it
-into cited claims, `designer` drafts the design and its verification plan,
-four differentiated reviewers debate it (1-3 bounded rounds, `synthesizer`
-adjudicating any REVISE round), and `reviewer` (design mode) runs an
-independent final inspection. File-backed in `.supergoal/` (DRAFT_BRIEF,
-RESEARCH, DESIGN, DEBATE), resumable at any wave boundary. Small missions
-skip straight from Clarify to Agree.
-
 ## Agree (the one consent checkpoint)
 
 Compose ONE message containing: the objective in one line, the success
 criterion, a subgoal sketch, boundaries and constraints, the assumption
-ledger, the budget, and the blocked-stop condition. The user replies "go" or
+ledger, the tier with its estimated design cost (standard/high-risk), the
+budget, and the blocked-stop condition. The user replies "go" or
 corrects any line; any other reply (a question, "go but also X", refusal) is
 continued Clarify - scope additions route through the scope test, and
 nothing starts until a clean "go" or corrected lines. Do not start the Loop
 before they answer - this message is the consent checkpoint for the whole
-mission and replaces any separate plan/contract confirmations.
-
-Standard/high-risk missions additionally present the final design summary
-(with its `accepted-version`) and residual risks from the cluster's inspected
-`DESIGN.md`; the subgoal sketch is the accepted design's subgoal plan, not a
-fresh guess.
+mission and replaces any separate plan/contract confirmations. One "go"
+approves both the scope and the spend; nothing autonomous and expensive runs
+before it.
 
 On "go": write `.supergoal/PLAN.md` first, then `.supergoal/BRIEF.md` (template in
 `references/clarify.md`) - PLAN.md is mechanically re-derivable, so this
 order is crash-safe and the Stop hook treats BRIEF-without-PLAN as a broken
-state. For cluster missions this is a promotion, not a fresh write
-(`references/super-agent-cluster.md` has the exact order and the superseded
-note). Every subgoal is a checkbox with a machine-checkable done condition:
+state. For standard/high-risk tiers the initial plan is design-first: an
+unprefixed `- [ ] DESIGN: ...` line plus FINAL, with the implementation
+subgoals derived from the inspected design once the design phase completes
+(`references/super-agent-cluster.md` has the exact seed plan and derivation).
+Every subgoal is a checkbox with a machine-checkable done condition:
 
 ```text
 - [ ] SG1: <outcome> | verify: `<command>` | done-when: <observable criterion>
@@ -220,13 +207,24 @@ After "go", create one top-level `/goal` from the same contract (template in
 `references/codex.md`) before the first DAOR cycle. Do not silently degrade
 the mission contract to a plain instruction.
 
-## Loop - DAOR cycles
+## Loop - design phase, then DAOR cycles
 
-Read `references/loop-daor.md` before the first cycle. When the mission
-tier calls for it, the plan gate runs first (see Gate). The first cycle is
-Observe-0: run the baseline eval and record baseline metrics before any
-change (greenfield: the failing or absent result is the baseline). Then
-repeat, one subgoal at a time, one cycle at a time:
+Read `references/loop-daor.md` before the first cycle. Standard and
+high-risk missions open the Loop with the design phase
+(`references/super-agent-cluster.md`): `researcher` builds the source
+register and distills it into cited claims, `designer` drafts the design and
+its verification plan, four differentiated reviewers debate it (bounded
+rounds, `synthesizer` adjudicating any REVISE), and `reviewer` (design mode)
+runs an independent final inspection - all journaled, all under the
+contract's design budget, file-backed in RESEARCH/DESIGN/DEBATE.md and
+resumable at any step. On `implementation-ready: yes` the implementation
+subgoals are derived into PLAN.md and the plan gate attacks the derived plan
+(see Gate). Small missions skip straight to the cycles.
+
+The first implementation cycle is Observe-0: run the baseline eval and
+record baseline metrics before any change (greenfield: the failing or absent
+result is the baseline). Then repeat, one subgoal at a time, one cycle at a
+time:
 
 1. **Design** - falsifiable hypothesis: the bottleneck, the single variable
    to change, the verify command, the expected result, the failure
@@ -264,11 +262,13 @@ Read `references/adversarial-review.md`. Every completion claim gets a
 logged review verdict before its PLAN box is checked:
 
 - Plan gate: for standard and high-risk missions, the reviewer attacks the
-  Agree contract itself before cycle 1 - wrong problem, unverifiable or
-  gameable success criterion. Verdict logged as a `## PLAN GATE` journal
-  section with `plan-review: GO | REVISE | SKIPPED` (never `review: PASS` -
-  that string is completion evidence to the Stop hook). Small missions may
-  skip it with the SKIPPED note.
+  derived implementation plan against the Agree contract, after the design
+  phase and before the first implementation cycle - wrong problem,
+  unverifiable or gameable success criterion, riskiest subgoal not first.
+  Verdict logged as a `## PLAN GATE` journal section with
+  `plan-review: GO | REVISE | SKIPPED` (never `review: PASS` - that string
+  is completion evidence to the Stop hook). Small missions may skip it with
+  the SKIPPED note.
 - Subgoal gate: when a subgoal claims done. Required reviewer is the
   `reviewer` subagent (read-only, separate context). A checked PLAN box needs
   the reviewer verdict logged in JOURNAL; self-review is not a substitute.
@@ -364,10 +364,9 @@ Active mission (one at a time; the Stop hook reads these):
 - `.supergoal/EXPERIMENTS.md` - ML run ledger (only for tasks with runs).
 - `.supergoal/tmp/` - the only place for scratch files.
 
-Standard/high-risk missions add four cluster files (formats and writers in
-`references/super-agent-cluster.md`); they archive with the mission:
-`.supergoal/DRAFT_BRIEF.md` (pre-Agree contract, promoted to `BRIEF.md` on
-"go"), `.supergoal/RESEARCH.md` (source register + distilled claims),
+Standard/high-risk missions add three design-phase files (formats and
+writers in `references/super-agent-cluster.md`); they archive with the
+mission: `.supergoal/RESEARCH.md` (source register + distilled claims),
 `.supergoal/DESIGN.md` (versioned drafts, verification plan, final inspection),
 `.supergoal/DEBATE.md` (round-by-round objections and synthesis).
 
