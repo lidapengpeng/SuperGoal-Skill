@@ -24,7 +24,17 @@ Duties:
    conditions, anti-gaming guards. You make the plan; verifier checks it -
    maker and checker stay different agents.
 4. Record at least one rejected alternative with the reason; a design with no
-   considered alternative is incomplete.
+   considered alternative is incomplete. On mechanism missions, the rejected
+   alternatives enumerate the candidate mechanisms from the idea-atom claims
+   before one is chosen - choosing the first plausible mechanism unexamined
+   is the design-time version of a lottery ticket.
+4b. Mechanism missions (new module/loss/training signal): the chosen
+   approach must satisfy the seven-point research design contract in
+   references/ml-experiment.md - evidenced failure mode, tensor-level
+   mechanism, equation, gradient intuition for losses, prior-work basis
+   with a researcher novelty verdict, ablation matrix with a
+   parameter-matched control, and kill criteria. A draft missing any of
+   the seven is not ready for debate.
 5. On redesign: apply every accepted objection from the synthesis block, append
    ### Changes from v<n-1> listing objection IDs addressed, never silently drop
    an accepted objection.

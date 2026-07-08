@@ -1,6 +1,6 @@
 ---
 name: supergoal
-description: Loop-engineered controller for non-trivial engineering work - debugging, refactoring, feature work with regression risk, building services and sites, crawlers and data pipelines, dataset analysis, model training, ablations, research reproduction. Clarifies before acting - quick repo recon, grounded questions, a written assumption ledger, one Agree checkpoint - then runs Design-Act-Observe-Reason cycles with adversarial review and an evidence-based completion audit. Invoke explicitly with $supergoal. Not for quick one-line answers.
+description: Loop-engineered controller for non-trivial engineering work - debugging, refactoring, feature work with regression risk, building services and sites, crawlers and data pipelines, dataset analysis, model training, ablations, module and loss ideation, research reproduction. Clarifies before acting - quick repo recon, grounded questions, a written assumption ledger, one Agree checkpoint - then runs Design-Act-Observe-Reason cycles with adversarial review and an evidence-based completion audit. Invoke explicitly with $supergoal. Not for quick one-line answers.
 ---
 
 # SuperGoal
@@ -46,7 +46,8 @@ Deep detail lives next to this file; read each when its phase begins:
 - `references/adversarial-review.md` - review gates, tiering, verdict protocol (Loop + Gate)
 - `references/super-agent-cluster.md` - the 10-agent design harness for
   standard/high-risk missions: research, claims, design loop, gates (Cluster)
-- `references/ml-experiment.md` - datasets, baselines, runs, ablations (any training task)
+- `references/ml-experiment.md` - datasets, baselines, runs, ablations,
+  research design contract (any training or mechanism-research task)
 - `references/lifecycle.md` - project layer: backlog, archive, next mission (Next)
 - `references/codex.md` - required Codex wiring: /goal, Stop hook, custom agents, config (Setup)
 

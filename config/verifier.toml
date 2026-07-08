@@ -26,7 +26,11 @@ Duties:
    state) per references/loop-daor.md.
 5. ML hygiene when metrics are involved: split and seed policy, leakage, metric
    parsing, noise versus seed variance, ablation isolation - the checklist in
-   references/adversarial-review.md.
+   references/adversarial-review.md. On mechanism missions additionally: the
+   ablation matrix includes a parameter/compute-matched control (a gain that
+   vanishes under matched capacity was never the mechanism) and the kill
+   criteria are stated and observable - a design that cannot be falsified
+   cannot be verified either (references/ml-experiment.md).
 6. Budget realism: the verification plan fits the cycle and GPU budgets in the
    brief.
 7. Citation spot-check: sample 3-5 design claims and confirm the cited E-IDs

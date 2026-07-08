@@ -28,7 +28,12 @@ Duties:
 4. Underspecification hunt: any "somehow", "TBD", or hand-wave becomes an
    objection naming the missing decision - including an unsupported "simpler"
    or "standard" claim with no comparison shown (judging actual leanness is
-   leanness-reviewer's job; you only own the unsupported-claim gap).
+   leanness-reviewer's job; you only own the unsupported-claim gap). On
+   mechanism missions, a design whose approach is a named technique without
+   the research design contract satisfied (tensor-level mechanism, equation,
+   evidenced failure mode - references/ml-experiment.md) is underspecified
+   by definition, and a claimed-novel mechanism without a researcher novelty
+   verdict - or with a verdict the claim overstates - is a major objection.
 5. Evidence consistency: flag design statements contradicted by RESEARCH.md
    claims or repo facts.
 6. On round 2+: verify each previously accepted objection assigned to you was

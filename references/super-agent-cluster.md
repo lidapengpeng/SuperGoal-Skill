@@ -259,6 +259,16 @@ approach family (its representative S-IDs, reported benchmark numbers where
 they exist), plus explicit gap claims for what the literature does not yet
 answer - this is the methodology synthesis the designer consumes.
 
+On mechanism missions (a new module/loss/training signal is the deliverable)
+claims are **idea atoms** - extracted by component, not by section - adding
+`component-type`, `mechanism`, `mathematical-form`, `insertion-point`,
+`limitations`, and `transferable-to` fields, plus negative-knowledge claims
+(what did not work, what was never ablated). The researcher also serves
+novelty-check packets against proposed mechanisms; field lists and verdict
+vocabulary are canonical in `config/researcher.toml`, and the design-side
+requirements those atoms feed live in `references/ml-experiment.md`
+(research design contract).
+
 If neither web search nor an MCP server is available, `researcher` writes a
 `RESEARCH BLOCKED` note and the main thread raises a user checkpoint with the
 two options named: proceed repo-only (via the NO-WEB-RESEARCH path) or halt

@@ -35,7 +35,10 @@ targeted at val, never test; normalization fitted on train only); metric
 parsing correctness (does the quoted number come from the quoted file,
 computed the standard way?); noise (is the improvement within seed variance?
 demand multi-seed evidence when the delta is small); ablation isolation
-(exactly one variable per compared row); conclusions supported by quoted
+(exactly one variable per compared row); mechanism fidelity (does the diff
+implement the design's stated tensor operation at its stated insertion
+point, or does the gain come from added parameters or extra supervision? -
+demand the parameter-matched control row); conclusions supported by quoted
 logs rather than paraphrase.
 
 Verdict is exactly one of:

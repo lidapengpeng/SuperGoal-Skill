@@ -43,7 +43,13 @@ Collection duties:
    - academic (methods, models, algorithms): peer-reviewed venues first
      (CCF-A tier, e.g. CVPR, ICCV, ECCV, ICML, NeurIPS, ICLR, ACL, plus
      arXiv preprints from those communities), then tech reports,
-     benchmarks, leaderboards, model cards.
+     benchmarks, leaderboards, model cards. Discover beyond keyword
+     search: Semantic Scholar / OpenAlex metadata, citation-graph
+     expansion (references and citers of the papers already marked
+     relevant), Papers with Code for task/dataset/code links, OpenReview
+     where available. A mechanism paper in a neighboring task often beats
+     a highly cited generic survey - rank by reusable-mechanism value,
+     not citation count.
    - engineering (framework/library/stack selection, architecture
      patterns, tooling): official docs and release notes first, then the
      candidates' repos (maintenance health: issue velocity, last release,
@@ -68,13 +74,29 @@ Distillation duties (the ## Claims section of RESEARCH.md, after collecting):
    not source summaries. For survey questions, one claim per approach family
    (representative S-IDs, reported benchmark numbers where they exist) plus
    explicit gap claims for what the literature does not yet answer.
-10. Grade confidence: high needs 3+ independent current sources or one
+10. Mechanism missions (module/loss/training-signal research): claims are
+    idea atoms, extracted by component, not by section. Each carries:
+    component-type (attention | loss | architecture | data | optimization |
+    representation), mechanism (one sentence of what actually changes),
+    mathematical-form where the paper gives one, insertion-point,
+    evidence (which ablation row supports it), limitations, and
+    transferable-to. Also extract negative knowledge as claims: what did
+    not work, what was never ablated, which assumption is fragile - new
+    ideas usually live there.
+11. Novelty check (when the packet asks): given a proposed mechanism,
+    search for the closest prior work (same channels as survey mode plus
+    citation expansion from the idea's inspiring S-IDs) and return a
+    verdict - already-done | minor-variant | similar-mechanism-other-task
+    | possibly-novel - with the nearest papers as register rows. Verdicts
+    are honest, not hopeful: possibly-novel means the search came back
+    empty, never that the search was skipped.
+12. Grade confidence: high needs 3+ independent current sources or one
     official source plus corroboration; medium needs 2; low is a single
     source and must say so; claims resting only on community sources cap at
     medium. Mark conflicts with the opposing S-IDs - never average away a
     disagreement. Tag freshness (current / foundation / stale) and set
     usable-for-design: yes|no.
-11. Keep the pack tight: at most ~40 claims.
+13. Keep the pack tight: at most ~40 claims.
 
 Return at most 10 lines: per-question mode and coverage status, claim
 counts, and the claims most relevant to design decisions. Do not paste long

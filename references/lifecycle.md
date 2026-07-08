@@ -217,6 +217,10 @@ Write triggers - consolidate, never bare-append:
   root's `tried:` line (create the `L-` entry if the root is new).
 - Hard rule 4 fires: the checkpoint's diagnosis IS the entry - write it when
   the checkpoint is raised, not later.
+- A design idea killed for prior art (novelty verdict `already-done`, or a
+  debate objection citing the nearer paper): record the idea, the nearest
+  prior work (S-IDs), and the rejection reason - so the same idea is never
+  re-proposed from scratch and the prior work stays remembered.
 - Reopen: update the entry whose `state:` line let the defect through.
 - Close: sweep the mission's journal for any of the above that slipped past,
   then fill in `works:` for what finally held.

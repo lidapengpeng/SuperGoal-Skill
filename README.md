@@ -25,7 +25,8 @@ reviewer agent plus a mechanical Stop hook block the session from ending
 while any claim lacks its logged proof.
 
 **Use it for** debugging, refactoring, risky features, services and sites,
-crawlers and data pipelines, model training, research reproduction.
+crawlers and data pipelines, model training, module and loss ideation,
+research reproduction.
 **Skip it for** one-line answers — it will refuse them anyway.
 
 ## Why not just `/goal`?
@@ -75,6 +76,17 @@ drafts, four differentiated reviewers debate it (completeness, failure
 modes, verifiability, leanness), and a fresh-eyes inspection signs off —
 all journaled, all inside the contract's budget. High-risk missions must
 survive at least two debate rounds.
+
+Mechanism research — a new module, loss, or training signal — gets extra
+teeth: the `researcher` distills prior work into component-level idea atoms
+and returns an honest novelty verdict on every proposed mechanism, and no
+draft reaches debate until it pins the seven-point research design
+contract — evidenced failure mode, tensor-level mechanism, the actual
+equation, gradient intuition, prior-work basis, an ablation matrix with a
+parameter-matched control, and kill criteria. Ideas killed for prior art
+become lessons that are never re-proposed, and the completion gate checks
+the diff implements the stated mechanism — a gain that vanishes under
+matched capacity was never the mechanism.
 
 ## What a session looks like
 
