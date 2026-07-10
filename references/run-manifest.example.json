@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "run_id": "example-ci-speedup-20260709",
+  "base_sha": "0123456789abcdef0123456789abcdef01234567",
+  "phase": "complete",
+  "controller": {
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "ultra",
+    "evidence": [
+      "Illustrative fixture only: replace with a retained controller runtime observation."
+    ]
+  },
+  "plan": {
+    "review": {
+      "role": "supergoal_reviewer",
+      "verdict": "PASS",
+      "evidence": [
+        "Plan review PASS: T1 has no prerequisites, owns only test-speed files, and has a deterministic verification command."
+      ]
+    }
+  },
+  "research": {
+    "status": "not_needed",
+    "evidence": [
+      "Recon found the repository test command and a local, deterministic bottleneck; no external fact changes the chosen plan."
+    ]
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "parent": "controller",
+      "role": "supergoal_luna_executor",
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": "xhigh",
+      "base_sha": "0123456789abcdef0123456789abcdef01234567",
+      "depends_on": [],
+      "writes": true,
+      "owned_paths": [
+        "tests/helpers/",
+        "tests/test_parallelism.py"
+      ],
+      "forbidden_paths": [
+        ".supergoal/",
+        "package-lock.json"
+      ],
+      "worktree": "/tmp/supergoal-example-task-001",
+      "verify": [
+        "pytest tests/test_parallelism.py -q"
+      ],
+      "status": "complete",
+      "result": "Replaced a repeated fixture setup with the shared test helper; the assigned test passes.",
+      "output_sha256": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "runtime": {
+        "agent_role": "supergoal_luna_executor",
+        "model": "gpt-5.6-luna",
+        "reasoning_effort": "xhigh",
+        "evidence": [
+          "Illustrative fixture only: replace with a retained binding-canary observation."
+        ]
+      },
+      "evidence": [
+        "Illustrative fixture result: replace with raw targeted verification output.",
+        "Illustrative fixture path record: replace with actual changed paths."
+      ]
+    }
+  ],
+  "integration": {
+    "status": "complete",
+    "evidence": [
+      "Illustrative fixture integration record: replace with actual controller evidence.",
+      "Illustrative fixture verification result: replace with merged output."
+    ]
+  },
+  "review": {
+    "role": "supergoal_reviewer",
+    "verdict": "PASS",
+    "evidence": [
+      "Illustrative fixture review record: replace with a fresh reviewer verdict and evidence."
+    ]
+  },
+  "final_verification": {
+    "status": "PASS",
+    "evidence": [
+      "Illustrative fixture final verification: replace with the actual merged result."
+    ]
+  }
+}

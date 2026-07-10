@@ -1,7 +1,7 @@
 interface:
   display_name: "SuperGoal"
-  short_description: "Loop-engineered controller: repo recon, grounded clarifying questions, no silent assumptions, one Agree checkpoint, DAOR experiment cycles, adversarial review."
-  default_prompt: "Use $supergoal to run this task through its full workflow: quick recon, grounded clarification with an assumption ledger, one Agree checkpoint, Design-Act-Observe-Reason cycles with a run ledger, adversarial review gates, and an evidence-based completion audit."
+  short_description: "Plan-first, evidence-gated controller that delegates only validated independent workstreams and verifies their integrated result."
+  default_prompt: "Use $supergoal to define the durable outcome and validation evidence. First inspect the task and produce a dependency-aware execution plan. Delegate only genuinely independent workstreams to named SuperGoal roles, use research only for actual evidence gaps, reconcile results, run final validation, and do not claim completion without current evidence."
 
 policy:
   # Heavyweight workflow: only run when explicitly invoked with $supergoal.

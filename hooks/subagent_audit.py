@@ -1,61 +1,36 @@
 #!/usr/bin/env python3
-"""SuperGoal SubagentStop hook: enforce agent write scope (EXPERIMENTAL).
+"""Experimental state-write advisory for SuperGoal's named subagent roles.
 
-Blocks a write-capable cluster agent's turn when it created, modified, or
-deleted a `.supergoal/` file outside its declared scope.
+All three named roles are prohibited from changing durable ``.supergoal``
+state.  The controller is the sole manifest writer; executor code writes are
+isolated in task worktrees and are declared in ``run_manifest.json`` instead.
+``.supergoal/tmp/`` and ``.supergoal/worktrees/`` are intentionally scratch
+surfaces, not durable controller state.
 
-Mechanism: content-hash snapshots. Before spawning a write-capable wave the
-scheduler runs `python subagent_audit.py --snapshot` (from anywhere in the
-repo), which records a SHA-256 per `.supergoal/` file - `tmp/` excluded - into
-`.supergoal/tmp/.write-audit-baseline`. When the agent's turn ends this hook
-re-snapshots, diffs, and checks every changed path against the agent's
-allow-list. Out-of-scope -> {"decision": "block", ...} on stdout; a clean diff
-advances the baseline for the next write-capable agent.
-`python subagent_audit.py --audit <agent>` runs the identical check from the
-command line: the scheduler's manual safety net, and the way to exercise the
-logic against a live install.
-
-Why hashes and not `git status --short` (the first revision): in the common
-layout `.supergoal/` is untracked, so git collapses the whole tree to one
-`?? .supergoal/` line - baseline and post-violation output are identical - and a
-content edit to an untracked file never changes status output at all. Hashing
-sees content, not tracking state, and needs no git.
-
-The three bulk-writer cluster agents each own exactly one `.supergoal/` document;
-`worker` owns none (its real writes are code files outside `.supergoal/`, which
-this hook does not audit - the packet's instruction scope and the completion
-gates cover those). Reviewers never match this hook; they are read-only.
-
-EXPERIMENTAL: the exact SubagentStop payload shape and the JSON-stdout
-requirement were designed from Codex hook documentation, not verified against
-a live install. Every failure mode degrades to "do not block" so a payload
-mismatch can never wedge a session; until verified, the scheduler's `--audit`
-pass after each write-capable wave stays the primary safety net. When the
-hook does fire cleanly, it runs the same duplicate S/E-ID scan as `--audit`.
+The Start/Stop payload shape is surface-dependent, so this tool is deliberately
+an advisory guard, not a claim of sandbox enforcement.  It stores a hash
+baseline outside the repository and compares durable state after a role stops.
+It does not inspect Codex private SQLite files or rollout transcripts.
 """
+
 import hashlib
 import json
-import re
+import os
 import sys
 from pathlib import Path
 
-# `.supergoal/`-relative files each write-capable agent may create or modify.
-# `.supergoal/tmp/` is excluded from snapshots entirely, so scratch writes are
-# implicitly allowed for everyone.
+
 WRITE_SCOPES = {
-    "researcher": {"RESEARCH.md"},
-    "designer": {"DESIGN.md"},
-    "synthesizer": {"DEBATE.md"},
-    "worker": set(),
+    "supergoal_luna_executor": set(),
+    "supergoal_researcher": set(),
+    "supergoal_reviewer": set(),
 }
-
 AGENT_TYPE_KEYS = ("agent_type", "subagent_type", "agentType", "subagentType")
-
-BASELINE_REL = Path("tmp") / ".write-audit-baseline"
+AGENT_ID_KEYS = ("agent_id", "subagent_id", "task_id", "thread_id", "agentId", "taskId")
+AUDIT_ROOT = Path.home() / ".codex" / "supergoal-audit"
 
 
 def find_supergoal(cwd):
-    """Walk up from cwd to the git root looking for a .supergoal directory."""
     path = Path(cwd or ".").resolve()
     for candidate in (path, *path.parents):
         supergoal = candidate / ".supergoal"
@@ -67,228 +42,181 @@ def find_supergoal(cwd):
 
 
 def get_agent_type(event):
-    """Best-effort extraction of the subagent type from an uncertain payload."""
     for key in AGENT_TYPE_KEYS:
         value = event.get(key)
         if isinstance(value, str) and value:
             return value
     for parent in ("subagent", "agent"):
-        sub = event.get(parent)
-        if isinstance(sub, dict):
-            value = sub.get("type") or sub.get("name")
-            if isinstance(value, str) and value:
-                return value
+        value = event.get(parent)
+        if isinstance(value, dict):
+            name = value.get("type") or value.get("name")
+            if isinstance(name, str) and name:
+                return name
+    return None
+
+
+def get_agent_id(event):
+    for key in AGENT_ID_KEYS:
+        value = event.get(key)
+        if isinstance(value, str) and value:
+            return value
+    for parent in ("subagent", "agent"):
+        value = event.get(parent)
+        if isinstance(value, dict):
+            for key in ("id", "task_id", "thread_id"):
+                task_id = value.get(key)
+                if isinstance(task_id, str) and task_id:
+                    return task_id
     return None
 
 
 def snapshot(supergoal):
-    """{.supergoal-relative posix path: sha256} for every file.
-
-    tmp/ is excluded (scratch space, open to all writers). archive/ is
-    excluded too: no agent may write there anyway, hashing it makes every
-    hook fire O(project history), and a baseline taken before archiving
-    would mass-false-block the next mission's first agent after Next moves
-    the root files.
-    """
-    out = {}
-    for path in sorted(supergoal.rglob("*")):
-        if not path.is_file():
-            continue
-        rel = path.relative_to(supergoal).as_posix()
-        if rel.startswith(("tmp/", "archive/")):
+    """Map durable controller state to hashes; exclude scratch/worktrees."""
+    result = {}
+    for path in sorted(Path(supergoal).rglob("*")):
+        relative = path.relative_to(supergoal).as_posix()
+        if relative.startswith(("tmp/", "worktrees/")):
             continue
         try:
-            out[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
-        except OSError:
-            continue  # unreadable file: skip rather than wedge the audit
-    return out
+            if path.is_symlink():
+                result[relative] = "SYMLINK:" + os.readlink(path)
+            elif path.is_file():
+                result[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError as error:
+            result[relative] = "UNREADABLE:" + type(error).__name__
+    return result
 
 
 def changed_paths(baseline, current):
-    """Created, modified, or deleted relative paths versus the baseline."""
-    return sorted(
-        p for p in set(baseline) | set(current)
-        if baseline.get(p) != current.get(p)
-    )
+    return sorted(path for path in set(baseline) | set(current) if baseline.get(path) != current.get(path))
 
 
 def scope_violations(agent_type, baseline, current):
-    """Changed `.supergoal/` paths that are outside this agent's write scope."""
     allowed = WRITE_SCOPES.get(agent_type, set())
-    return [p for p in changed_paths(baseline, current) if p not in allowed]
+    return [path for path in changed_paths(baseline, current) if path not in allowed]
 
 
 def describe_scope(agent_type):
-    owned = sorted(WRITE_SCOPES.get(agent_type, set()))
-    if not owned:
-        return "only .supergoal/tmp/"
-    return " + ".join(".supergoal/" + name for name in owned) + " (plus .supergoal/tmp/)"
+    if agent_type in WRITE_SCOPES:
+        return "no durable .supergoal writes; executor code writes belong only in its declared worktree"
+    return "unmatched role"
 
 
-def read_baseline(supergoal):
-    """The stored snapshot dict, or None when absent or unparseable."""
-    baseline_file = supergoal / BASELINE_REL
-    if not baseline_file.is_file():
-        return None
+def baseline_path(supergoal, agent_type, task_id, audit_root=None):
+    root = Path(audit_root) if audit_root is not None else AUDIT_ROOT
+    repo_key = hashlib.sha256(str(Path(supergoal).resolve()).encode("utf-8")).hexdigest()[:24]
+    task_key = hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:24]
+    return root / repo_key / (agent_type + "-" + task_key + ".json")
+
+
+def read_baseline(supergoal, agent_type, task_id, audit_root=None):
+    path = baseline_path(supergoal, agent_type, task_id, audit_root)
     try:
-        data = json.loads(baseline_file.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    return data if isinstance(data, dict) else None
+    if not isinstance(value, dict) or value.get("agent_type") != agent_type or value.get("task_id") != task_id:
+        return None
+    return value.get("snapshot") if isinstance(value.get("snapshot"), dict) else None
 
 
-def write_baseline(supergoal, snap):
-    baseline_file = supergoal / BASELINE_REL
+def write_baseline(supergoal, agent_type, task_id, state, audit_root=None):
+    path = baseline_path(supergoal, agent_type, task_id, audit_root)
     try:
-        baseline_file.parent.mkdir(parents=True, exist_ok=True)
-        baseline_file.write_text(
-            json.dumps(snap, sort_keys=True, indent=1), encoding="utf-8"
-        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"agent_type": agent_type, "task_id": task_id, "snapshot": state}, sort_keys=True), encoding="utf-8")
         return True
     except OSError:
         return False
 
 
-def audit(supergoal, agent_type):
-    """(violations, current_snapshot), or (None, None) when no baseline exists."""
-    baseline = read_baseline(supergoal)
+def audit(supergoal, agent_type, task_id, audit_root=None):
+    baseline = read_baseline(supergoal, agent_type, task_id, audit_root)
     if baseline is None:
         return None, None
     current = snapshot(supergoal)
-    return scope_violations(agent_type, baseline, current), current
-
-
-def duplicate_ids(supergoal):
-    """S/E IDs defined more than once in RESEARCH.md.
-
-    IDs are the cross-agent access mechanism; a crashed-and-rerun research
-    call can mint duplicates, after which citations silently resolve to the
-    wrong row. Definitions counted: register rows (`| S001 | ...`) and claim
-    headers (`### E001 ...`).
-    """
-    research = supergoal / "RESEARCH.md"
-    if not research.is_file():
-        return []
-    try:
-        text = research.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return []
-    seen, dupes = set(), []
-    for match in re.finditer(
-        r"(?m)^\|\s*(S\d+)\s*\||^###\s+(E\d+)\b", text
-    ):
-        ident = match.group(1) or match.group(2)
-        if ident in seen and ident not in dupes:
-            dupes.append(ident)
-        seen.add(ident)
-    return dupes
+    violations = scope_violations(agent_type, baseline, current)
+    violations.extend(
+        "{} (unsafe durable entry)".format(path)
+        for path, digest in current.items()
+        if digest.startswith(("SYMLINK:", "UNREADABLE:"))
+    )
+    return sorted(set(violations)), current
 
 
 def block_reason(agent_type, violations):
     return (
-        "SuperGoal write-scope audit: {} changed .supergoal/ files outside its"
-        " scope: {}. Allowed: {}. Revert or move those writes; the scheduler"
-        " owns BRIEF/PLAN/JOURNAL and every other agent's documents.".format(
-            agent_type,
-            ", ".join(".supergoal/" + p for p in violations),
-            describe_scope(agent_type),
-        )
-    )
+        "SuperGoal state-write advisory: {} changed durable .supergoal files "
+        "outside its declared scope: {}. Allowed: {}. The controller owns "
+        "run_manifest.json and mission state."
+    ).format(agent_type, ", ".join(".supergoal/" + path for path in violations), describe_scope(agent_type))
 
 
-def run_hook():
-    """SubagentStop mode: event JSON on stdin, block JSON on stdout."""
+def hook_decision(event, phase, audit_root=None):
+    agent_type = get_agent_type(event)
+    if agent_type not in WRITE_SCOPES:
+        return None
+    supergoal = find_supergoal(event.get("cwd", "."))
+    if supergoal is None:
+        return None
+    task_id = get_agent_id(event)
+    if task_id is None:
+        return {"decision": "block", "reason": "SuperGoal state-write advisory: recognized role {} has no runtime task ID.".format(agent_type)}
+    if phase == "start":
+        if write_baseline(supergoal, agent_type, task_id, snapshot(supergoal), audit_root):
+            return None
+        return {"decision": "block", "reason": "SuperGoal state-write advisory: could not create baseline for {}.".format(task_id)}
+    violations, _ = audit(supergoal, agent_type, task_id, audit_root)
+    if violations is None:
+        return {"decision": "block", "reason": "SuperGoal state-write advisory: no baseline exists for {}.".format(task_id)}
+    return {"decision": "block", "reason": block_reason(agent_type, violations)} if violations else None
+
+
+def run_hook(phase):
     try:
         event = json.loads(sys.stdin.read().lstrip("\ufeff"))
     except (json.JSONDecodeError, ValueError):
-        return  # malformed input: never block
-
-    if event.get("stop_hook_active"):
         return
-
-    agent_type = get_agent_type(event)
-    if agent_type not in WRITE_SCOPES:
-        return  # reviewers, explorer, or an unknown type: nothing to audit
-
-    supergoal = find_supergoal(event.get("cwd", "."))
-    if supergoal is None:
-        return
-
-    violations, current = audit(supergoal, agent_type)
-    if violations is None:
-        return  # scheduler took no snapshot; the --audit net covers this wave
-    problems = []
-    if violations:
-        problems.append(block_reason(agent_type, violations))
-    # Same duplicate S/E-ID scan as CLI --audit: live SubagentStop must not
-    # be a weaker net than the scheduler fallback.
-    dupes = duplicate_ids(supergoal)
-    if dupes:
-        problems.append(
-            "duplicate S/E-ID definitions in RESEARCH.md: {} - citations"
-            " will resolve to the wrong row; renumber before design"
-            " consumes them".format(", ".join(dupes))
-        )
-    if problems:
-        print(json.dumps(
-            {"decision": "block", "reason": "; ".join(problems)}
-        ))
-        return
-    write_baseline(supergoal, current)  # clean turn: advance the baseline
+    decision = hook_decision(event, phase)
+    if decision:
+        print(json.dumps(decision, ensure_ascii=False, sort_keys=True))
 
 
 def run_cli(argv):
-    """--snapshot / --audit <agent> for the scheduler. Nonzero exit on failure."""
+    if len(argv) != 3 or argv[0] not in {"--snapshot", "--audit"}:
+        print("usage: subagent_audit.py [--snapshot|--audit] <role> <task-id>", file=sys.stderr)
+        return 2
+    mode, agent_type, task_id = argv
+    if agent_type not in WRITE_SCOPES:
+        print("subagent_audit: unknown role {!r}".format(agent_type), file=sys.stderr)
+        return 1
     supergoal = find_supergoal(".")
     if supergoal is None:
-        print("subagent_audit: no .supergoal/ directory found from cwd", file=sys.stderr)
+        print("subagent_audit: no .supergoal directory found", file=sys.stderr)
         return 1
-
-    if argv[0] == "--snapshot":
-        snap = snapshot(supergoal)
-        if not write_baseline(supergoal, snap):
+    if mode == "--snapshot":
+        if not write_baseline(supergoal, agent_type, task_id, snapshot(supergoal)):
             print("subagent_audit: could not write baseline", file=sys.stderr)
             return 1
-        print("baseline: {} file(s) under {}".format(len(snap), supergoal))
+        print("state baseline recorded for {} {}".format(agent_type, task_id))
         return 0
-
-    if argv[0] == "--audit" and len(argv) > 1:
-        agent_type = argv[1]
-        if agent_type not in WRITE_SCOPES:
-            print(
-                "subagent_audit: unknown agent {!r}; write-capable agents: {}".format(
-                    agent_type, ", ".join(sorted(WRITE_SCOPES))
-                ),
-                file=sys.stderr,
-            )
-            return 1
-        violations, current = audit(supergoal, agent_type)
-        if violations is None:
-            print("subagent_audit: no baseline; run --snapshot before the wave",
-                  file=sys.stderr)
-            return 1
-        problems = []
-        if violations:
-            problems.append(block_reason(agent_type, violations))
-        dupes = duplicate_ids(supergoal)
-        if dupes:
-            problems.append(
-                "duplicate S/E-ID definitions in RESEARCH.md: {} - citations"
-                " will resolve to the wrong row; renumber before design"
-                " consumes them".format(", ".join(dupes))
-            )
-        if problems:
-            print("; ".join(problems))
-            return 1
-        write_baseline(supergoal, current)
-        print("write scope clean for {}".format(agent_type))
-        return 0
-
-    print("usage: subagent_audit.py [--snapshot | --audit <agent>]", file=sys.stderr)
-    return 2
+    violations, _ = audit(supergoal, agent_type, task_id)
+    if violations is None:
+        print("subagent_audit: no baseline; run --snapshot first", file=sys.stderr)
+        return 1
+    if violations:
+        print(block_reason(agent_type, violations))
+        return 1
+    print("state scope clean for {} {}".format(agent_type, task_id))
+    return 0
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 1 and sys.argv[1] == "--hook-start":
+        run_hook("start")
+    elif len(sys.argv) > 1 and sys.argv[1] == "--hook-stop":
+        run_hook("stop")
+    elif len(sys.argv) > 1:
         sys.exit(run_cli(sys.argv[1:]))
-    run_hook()
+    else:
+        run_hook("stop")

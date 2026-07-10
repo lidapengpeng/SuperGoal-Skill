@@ -1,61 +1,28 @@
 #!/usr/bin/env python3
-"""SuperGoal Stop hook: block session end while verifiable work remains.
+"""One-stop SuperGoal completion advisory backed by ``run_manifest.json``.
 
-Reads the Stop event JSON on stdin and cross-checks the .supergoal/ state files.
-Blocks (decision: block) when any of these hold:
-
-1. PLAN.md has unchecked subgoals (`- [ ]`).
-2. PLAN.md has checkboxes but is missing the mandatory FINAL gate line.
-3. A checked `- [x] SG<id>` has no JOURNAL.md section whose HEADER names
-   SG<id> and whose body logs `review: PASS`. (Header-only matching:
-   body mentions like "next step: SG3" or a PLAN GATE note must never
-   validate another subgoal's box.)
-4. The FINAL line is checked but JOURNAL.md has no `## FINAL GATE` section
-   containing `review: PASS`.
-5. EXPERIMENTS.md has PENDING runs.
-6. A standard/high-risk mission (DESIGN.md present alongside PLAN.md) has no
-   `## FINAL DESIGN INSPECTION` section logging `implementation-ready: yes`.
-   Keyed on DESIGN.md presence: small missions never create DESIGN.md, so
-   this check cannot fire for them. It fires both on a mid-design pause
-   (design work remains - correct nudge) and a checked DESIGN box without
-   a real inspection. The LAST inspection section wins - re-inspection after
-   a REVISE appends, and an old failed block must not shadow a later pass.
-7. BRIEF.md exists but PLAN.md does not: Agree writes PLAN.md first, then
-   BRIEF.md, so this state is either a crashed Agree write or a dodge that
-   would disable every other check.
-8. The FINAL line is marked blocked (`- [!] FINAL`): every other box may be
-   legitimately blocked, but the final gate has no legitimate blocked state -
-   allowing it would be a one-character zero-gate session end.
-9. A `## REOPEN <date>` entry postdates the newest `## FINAL GATE <date>`
-   while FINAL is checked: a reopened mission must earn a fresh final gate,
-   and the stale one must not cover it.
-10. Mechanism-mission presence (not scientific quality): when RESEARCH.md
-    has a `## Novelty` section, DESIGN.md's latest `## DESIGN DRAFT` must
-    contain a `## Research design contract` block with the seven labeled
-    lines (failure-mode, tensor-mechanism, equation, gradient-intuition,
-    novelty, ablation-matrix, kill-criteria). Missing labels block Close.
-    Absence of `## Novelty` skips this check (non-mechanism missions).
-
-Anti-gaming notes: `review: PASS` only counts in its prescribed
-list-item form at line start (`- review: PASS`), so quoted text - including
-this hook's own block message pasted into the journal - can never validate a
-box. A journal header naming more than one SG id validates none of them.
-
-Blocked items marked "- [!] reason" are intentionally NOT counted (except
-FINAL): that is the escape hatch for genuinely blocked work that must be
-reported instead. Respects stop_hook_active so a single stop attempt is
-nudged at most once - never an infinite loop.
+The hook checks only portable state retained in ``.supergoal/run_manifest.json``.
+It deliberately does not inspect Codex SQLite state, rollout transcripts, or
+undocumented hook payload fields.  Consequently a block is an advisory that
+the declared completion contract is incomplete, not proof that a host runtime
+prevented a side effect.  ``stop_hook_active`` suppresses a repeat warning.
 """
+
+import argparse
+import hashlib
 import json
-import re
 import sys
 from pathlib import Path
 
-MAX_LISTED = 5
+from manifest_audit import audit_manifest
+
+
+MANIFEST_NAME = "run_manifest.json"
+MAX_PROBLEMS = 5
 
 
 def find_supergoal(cwd):
-    """Walk up from cwd to the git root looking for a .supergoal directory."""
+    """Find the nearest ``.supergoal`` directory without escaping a git root."""
     path = Path(cwd or ".").resolve()
     for candidate in (path, *path.parents):
         supergoal = candidate / ".supergoal"
@@ -66,295 +33,135 @@ def find_supergoal(cwd):
     return None
 
 
-def read_text(path):
-    return path.read_text(encoding="utf-8", errors="replace")
+def _active_without_manifest(supergoal):
+    """Avoid nudging an untouched state directory, but protect active plans."""
+    plan = supergoal / "PLAN.md"
+    try:
+        return plan.is_file() and bool(plan.read_text(encoding="utf-8", errors="replace").strip())
+    except OSError:
+        return False
 
 
-def journal_sections(journal_text):
-    """Split JOURNAL.md into `## ` sections; each keeps header + body."""
-    return re.split(r"(?m)^##\s+", journal_text)[1:]
+def workspace_snapshot_id(supergoal):
+    """Portable SHA-256 of workspace files outside ``.supergoal`` and ``.git``.
 
-
-# The prescribed journal form (loop-daor.md): a list item at line start.
-# Anchoring prevents quoted prose - including this hook's own block message -
-# from validating a checkbox.
-PASS_LINE = re.compile(r"(?m)^\s*-\s*review:\s*PASS\b", re.I)
-
-
-def has_pass(sections, name_pattern):
-    """True if a section whose header line matches name_pattern logs `review: PASS`.
-
-    Only the header line (e.g. `## C4 2026-07-05 SG2`) identifies the
-    subject; matching bodies too would let incidental mentions of an SG id
-    in another section validate that SG's checkbox. A header naming more
-    than one SG id identifies nothing: one PASS must never validate several
-    boxes at once.
+    This utility remains available for controllers that want a base snapshot;
+    validation checks only the declared snapshot identifiers and never treats
+    this digest as an undocumented runtime trace.
     """
-    name = re.compile(name_pattern)
-    for section in sections:
-        header = section.splitlines()[0] if section.strip() else ""
-        if len(re.findall(r"\bSG\w+\b", header)) > 1:
+    root = Path(supergoal).resolve().parent
+    digest = hashlib.sha256()
+    paths = []
+    for path in root.rglob("*"):
+        if not path.is_file() or path.is_symlink():
             continue
-        if name.search(header) and PASS_LINE.search(section):
-            return True
-    return False
+        relative = path.relative_to(root).as_posix()
+        if relative.startswith((".supergoal/", ".git/")):
+            continue
+        paths.append((relative, path))
+    for relative, path in sorted(paths):
+        digest.update(relative.encode("utf-8", errors="surrogateescape") + b"\0")
+        try:
+            digest.update(path.read_bytes())
+        except OSError:
+            digest.update(b"UNREADABLE")
+    return "sha256:" + digest.hexdigest()
 
 
-def plan_problems(plan_text, sections):
-    problems = []
+def design_draft_digest(design_text):
+    """Compatibility helper for existing journal templates."""
+    return "sha256:" + hashlib.sha256(design_text.encode("utf-8")).hexdigest()
 
-    unchecked = [
-        m.strip()
-        for m in re.findall(r"^\s*[-*]\s*\[ \]\s*(.+)$", plan_text, re.M)
-    ]
-    if unchecked:
-        listed = "; ".join(item[:120] for item in unchecked[:MAX_LISTED])
-        extra = len(unchecked) - MAX_LISTED
-        more = " (+{} more)".format(extra) if extra > 0 else ""
-        problems.append(
-            "PLAN.md has {} unchecked subgoal(s): {}{}".format(
-                len(unchecked), listed, more
-            )
-        )
 
-    has_checkbox = re.search(r"^\s*[-*]\s*\[[^\]]\]", plan_text, re.M)
-    final_line = re.search(r"^\s*[-*]\s*\[[^\]]\]\s*FINAL\b", plan_text, re.M)
-    if has_checkbox and not final_line:
-        problems.append(
-            "PLAN.md is missing its mandatory last line"
-            " '- [ ] FINAL: adversarial final gate returned PASS ...'"
-        )
+def manifest_path(supergoal):
+    return Path(supergoal) / MANIFEST_NAME
 
-    checked_sgs = re.findall(r"^\s*[-*]\s*\[[xX]\]\s*(SG\w+)", plan_text, re.M)
-    unreviewed = [
-        sg
-        for sg in checked_sgs
-        if not has_pass(sections, r"\b" + re.escape(sg) + r"\b")
-    ]
-    if unreviewed:
-        problems.append(
-            "checked subgoal(s) with no JOURNAL.md section headed by their"
-            " SG id and logging 'review: PASS': "
-            + ", ".join(unreviewed[:MAX_LISTED])
-        )
 
-    final_checked = re.search(r"^\s*[-*]\s*\[[xX]\]\s*FINAL\b", plan_text, re.M)
-    if final_checked and not has_pass(sections, r"FINAL\s+GATE"):
-        problems.append(
-            "FINAL is checked but JOURNAL.md has no '## FINAL GATE' section"
-            " with 'review: PASS' - the final adversarial review is not on"
-            " record"
-        )
-
-    if re.search(r"^\s*[-*]\s*\[!\]\s*FINAL\b", plan_text, re.M):
-        problems.append(
-            "the FINAL line is marked blocked ('- [!] FINAL') - the final"
-            " gate has no legitimate blocked state; run it, or leave FINAL"
-            " unchecked and report the blocker"
-        )
-
-    if final_checked:
-        problems.extend(stale_final_gate_problems(sections))
-
+def completion_problems(supergoal):
+    """Return declared-contract failures, including non-complete phases."""
+    path = manifest_path(supergoal)
+    if not path.is_file():
+        return ["{} is missing; completion status cannot be audited".format(MANIFEST_NAME)]
+    result = audit_manifest(path)
+    problems = list(result.get("problems") or [])
+    if not problems and result.get("summary", {}).get("phase") != "complete":
+        problems.append("manifest phase is {}, not complete".format(result["summary"].get("phase")))
     return problems
 
 
-def _newest_date(sections, header_pattern):
-    """Newest ISO date found on headers matching the pattern, or None."""
-    pat = re.compile(header_pattern)
-    newest = None
-    for section in sections:
-        header = section.splitlines()[0] if section.strip() else ""
-        if not pat.search(header):
-            continue
-        for date in re.findall(r"\b(\d{4}-\d{2}-\d{2})\b", header):
-            if newest is None or date > newest:
-                newest = date
-    return newest
+def hook_decision(event):
+    """Return a Codex-style advisory decision, or ``None`` when clear."""
+    if not isinstance(event, dict) or event.get("stop_hook_active"):
+        return None
+    supergoal = find_supergoal(event.get("cwd", "."))
+    if supergoal is None:
+        return None
+    path = manifest_path(supergoal)
+    if not path.exists() and not _active_without_manifest(supergoal):
+        return None
+    problems = completion_problems(supergoal)
+    if not problems:
+        return None
+    shown = "; ".join(problems[:MAX_PROBLEMS])
+    if len(problems) > MAX_PROBLEMS:
+        shown += "; and {} more".format(len(problems) - MAX_PROBLEMS)
+    return {
+        "decision": "block",
+        "reason": (
+            "SuperGoal completion advisory: declared work is not ready to "
+            "close: {}. This is a one-stop reminder; verify the manifest "
+            "and resume or end the session deliberately."
+        ).format(shown),
+    }
 
 
-def stale_final_gate_problems(sections):
-    """A REOPEN dated after the newest FINAL GATE means the gate is stale.
-
-    lifecycle.md requires reopen to uncheck FINAL so the mission earns a
-    fresh, dated gate; this closes the lazy path that leaves FINAL checked
-    and lets the old gate silently cover the reopened defect. ISO dates
-    compare correctly as strings; undated headers are skipped (no false
-    blocks on legacy journals).
-    """
-    reopen = _newest_date(sections, r"^REOPEN\b")
-    gate = _newest_date(sections, r"^FINAL\s+GATE\b")
-    if reopen and gate and reopen > gate:
-        return [
-            "a '## REOPEN {}' entry postdates the newest '## FINAL GATE {}'"
-            " while FINAL is checked - a reopened mission must uncheck FINAL"
-            " and earn a fresh final gate".format(reopen, gate)
-        ]
-    return []
+def _print_audit(path):
+    result = audit_manifest(path)
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+    return 0 if result["pass"] else 1
 
 
-def pending_runs(experiments_text):
-    return [
-        line.strip()
-        for line in experiments_text.splitlines()
-        if re.search(r"\|\s*PENDING\s*\|?\s*$", line, re.I)
-    ]
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check-manifest", action="store_true", help="validate the portable manifest")
+    parser.add_argument("--manifest", help="manifest path for --check-manifest")
+    parser.add_argument("--snapshot-id", action="store_true", help="print a portable workspace snapshot digest")
+    parser.add_argument("--design-digest", action="store_true", help="print a digest of DESIGN.md")
+    args = parser.parse_args(argv)
 
+    if args.check_manifest:
+        if args.manifest:
+            return _print_audit(args.manifest)
+        supergoal = find_supergoal(".")
+        if supergoal is None:
+            print("stop_audit: no .supergoal directory found", file=sys.stderr)
+            return 1
+        return _print_audit(manifest_path(supergoal))
+    if args.snapshot_id or args.design_digest:
+        supergoal = find_supergoal(".")
+        if supergoal is None:
+            print("stop_audit: no .supergoal directory found", file=sys.stderr)
+            return 1
+        if args.snapshot_id:
+            print(workspace_snapshot_id(supergoal))
+        else:
+            design = supergoal / "DESIGN.md"
+            try:
+                print(design_draft_digest(design.read_text(encoding="utf-8")))
+            except OSError:
+                print("stop_audit: DESIGN.md is missing", file=sys.stderr)
+                return 1
+        return 0
 
-# Seven labeled lines required under ## Research design contract when the
-# mission is mechanism-shaped (RESEARCH.md has ## Novelty). Presence only.
-MECHANISM_CONTRACT_LABELS = (
-    "failure-mode",
-    "tensor-mechanism",
-    "equation",
-    "gradient-intuition",
-    "novelty",
-    "ablation-matrix",
-    "kill-criteria",
-)
-
-
-def _has_novelty_section(research_text):
-    return bool(re.search(r"(?m)^##\s+Novelty\b", research_text))
-
-
-def mechanism_contract_problems(supergoal):
-    """Presence audit for the seven-point research design contract.
-
-    Trigger: RESEARCH.md contains `## Novelty` (mechanism missions write it;
-    others do not). Then DESIGN.md must include a Research design contract
-    heading with all seven labels. Does not judge content quality - only that
-    the labels exist so debate has something to attack.
-    """
-    research = supergoal / "RESEARCH.md"
-    design = supergoal / "DESIGN.md"
-    if not (research.is_file() and design.is_file()):
-        return []
-    if not _has_novelty_section(read_text(research)):
-        return []
-    design_text = read_text(design)
-    if not re.search(r"(?im)^#{2,3}\s+Research design contract\b", design_text):
-        return [
-            "RESEARCH.md has '## Novelty' (mechanism mission) but"
-            " DESIGN.md has no '## Research design contract' section -"
-            " the seven labeled lines are required before Close"
-        ]
-    missing = [
-        label
-        for label in MECHANISM_CONTRACT_LABELS
-        if not re.search(
-            r"(?im)^\s*(\d+\.\s*)?(- )?{}:\s*\S".format(re.escape(label)),
-            design_text,
-        )
-    ]
-    if missing:
-        return [
-            "mechanism research design contract is missing labeled line(s):"
-            " {} - see config/designer.toml 4b / references/ml-experiment.md"
-            .format(", ".join(missing))
-        ]
-    return []
-
-
-def design_inspection_problems(supergoal, plan_present):
-    """Standard/high-risk missions must clear the design inspection.
-
-    Fires when PLAN.md and DESIGN.md both exist and the LATEST inspection
-    block does not log implementation-ready: yes. Small missions never
-    create DESIGN.md, so an absent DESIGN.md is not a violation - that is
-    what keeps tiering intact. Because the design phase runs inside the
-    mission (after Agree), this correctly blocks both a mid-design pause
-    (design work remains) and a checked DESIGN box with no real inspection.
-    """
-    design = supergoal / "DESIGN.md"
-    if not (plan_present and design.is_file()):
-        return []
-    # The LAST inspection section wins: re-inspection after a REVISE must not
-    # be shadowed by the earlier failed block.
-    last = None
-    for section in re.split(r"(?m)^##\s+", read_text(design))[1:]:
-        header = section.splitlines()[0] if section.strip() else ""
-        if header.startswith("FINAL DESIGN INSPECTION"):
-            last = section
-    if last is not None:
-        if re.search(r"implementation-ready:\s*yes\b", last, re.I):
-            return []
-        return [
-            "DESIGN.md's latest '## FINAL DESIGN INSPECTION' section is"
-            " not 'implementation-ready: yes' - the cluster design gate has"
-            " not passed"
-        ]
-    return [
-        "DESIGN.md is present (cluster mission) but has no '## FINAL DESIGN"
-        " INSPECTION' section with 'implementation-ready: yes' - the design"
-        " gate is not on record"
-    ]
-
-
-def main():
     try:
         event = json.loads(sys.stdin.read().lstrip("\ufeff"))
     except (json.JSONDecodeError, ValueError):
-        return  # malformed input: never block
-
-    if event.get("stop_hook_active"):
-        return  # this stop attempt was already continued once; let it end
-
-    supergoal = find_supergoal(event.get("cwd", "."))
-    if supergoal is None:
-        return
-
-    journal = supergoal / "JOURNAL.md"
-    sections = journal_sections(read_text(journal)) if journal.is_file() else []
-
-    problems = []
-
-    plan = supergoal / "PLAN.md"
-    if plan.is_file():
-        problems.extend(plan_problems(read_text(plan), sections))
-    elif (supergoal / "BRIEF.md").is_file():
-        problems.append(
-            "BRIEF.md exists but PLAN.md does not - a mission past Agree"
-            " always has both (Agree writes PLAN.md first); re-derive"
-            " PLAN.md from the agreed contract before ending the session"
-        )
-
-    problems.extend(design_inspection_problems(supergoal, plan.is_file()))
-    problems.extend(mechanism_contract_problems(supergoal))
-
-    experiments = supergoal / "EXPERIMENTS.md"
-    if experiments.is_file():
-        pending = pending_runs(read_text(experiments))
-        if pending:
-            problems.append(
-                "EXPERIMENTS.md has {} PENDING run(s): {}".format(
-                    len(pending), "; ".join(row[:120] for row in pending[:3])
-                )
-            )
-
-    if not problems:
-        return
-
-    reason = (
-        "SuperGoal completion audit: verifiable work remains. "
-        + " | ".join(problems)
-        + " If you were about to declare the task done, do not: continue the"
-        " DAOR loop instead - finish each subgoal, re-run its verify command,"
-        " conclude PENDING experiment rows with evidence, and run the"
-        " adversarial review so every checked box has its 'review: PASS' in"
-        " JOURNAL.md (final gate: a '## FINAL GATE' section). A checked box"
-        " without its logged PASS must be unchecked or its review run now."
-        " EXCEPTIONS, do not push past them: if this turn intentionally"
-        " paused at a user checkpoint (clarifying question, Agree"
-        " confirmation, stop-rule pause) or is waiting for a long-running"
-        " run to finish, restate the pending question or waiting state in"
-        " one line and stop - never answer for the user and never fabricate"
-        " a run conclusion. If an item is genuinely blocked, mark it"
-        " '- [!] <reason>' in PLAN.md and report the blocker instead of"
-        " silently stopping."
-    )
-    print(json.dumps({"decision": "block", "reason": reason}))
+        return 0
+    decision = hook_decision(event)
+    if decision:
+        print(json.dumps(decision, ensure_ascii=False, sort_keys=True))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

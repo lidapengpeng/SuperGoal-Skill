@@ -1,0 +1,26 @@
+# SuperGoal's single editable model profile.
+#
+# Change values here, then run:
+#   python3 hooks/sync_model_profile.py --write
+#
+# Use an effort that the selected model and your account expose. Validate the
+# active Codex catalog with: python3 hooks/sync_model_profile.py --check --catalog-check
+#
+# The lean workflow has no separate discussor card: `reviewer` performs the
+# plan-discussion and final-review duties. A [discussor] section is rejected.
+
+[controller]
+model = "gpt-5.6-sol"
+reasoning_effort = "ultra"
+
+[researcher]
+model = "gpt-5.6-luna"
+reasoning_effort = "xhigh"
+
+[executor]
+model = "gpt-5.6-luna"
+reasoning_effort = "xhigh"
+
+[reviewer]
+model = "gpt-5.6-sol"
+reasoning_effort = "max"

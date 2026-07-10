@@ -1,235 +1,134 @@
 #!/usr/bin/env python3
-"""Self-check for stop_audit.py. Run: python hooks/test_stop_audit.py
+"""Deterministic stdlib checks for the manifest-backed Stop advisory."""
 
-Assert-based, no framework. Fails loudly if the hook's ledger-audit logic
-drifts - especially the header-only SG matching that keeps body mentions
-(plan-gate notes, "next step: SG3") from validating another subgoal's box.
-"""
+import json
+import subprocess
+import sys
 import tempfile
+import unittest
 from pathlib import Path
 
-from stop_audit import (
-    find_supergoal,
-    journal_sections,
-    has_pass,
-    plan_problems,
-    pending_runs,
-    design_inspection_problems,
-    mechanism_contract_problems,
-    stale_final_gate_problems,
-)
+from stop_audit import completion_problems, find_supergoal, hook_decision, workspace_snapshot_id
 
-JOURNAL = """# JOURNAL
 
-## PLAN GATE 2026-07-05
-- plan-review: GO - criterion checkable; riskiest first is SG2
+SCRIPT = Path(__file__).with_name("stop_audit.py")
+SHA = "sha256:" + "a" * 64
 
-## C1 2026-07-05 SG1
-- design: hypothesis
-- observe: exit 0
-- reason: supported; next step: SG3
-- review: PASS - reviewer, deterministic green
 
-## C2 2026-07-05 SG2
-- reason: refuted
-- review: FAIL - counterexample: empty input crashes
+def _complete_manifest(phase="complete"):
+    review = {
+        "role": "supergoal_reviewer",
+        "verdict": "PASS",
+        "evidence": ["reviewed"],
+    }
+    return {
+        "version": 1,
+        "run_id": "run-stop-test",
+        "base_sha": SHA,
+        "phase": phase,
+        "controller": {
+            "model": "gpt-5.6-sol",
+            "reasoning_effort": "ultra",
+            "evidence": ["controller observation"],
+        },
+        "plan": {"review": review},
+        "tasks": [],
+        "integration": {"status": "complete", "evidence": ["merged"]},
+        "review": review,
+        "final_verification": {"status": "PASS", "evidence": ["tests passed"]},
+    }
 
-## FINAL GATE 2026-07-05
-- review: PASS - plan, ledger, diff audited
-"""
-SECTIONS = journal_sections(JOURNAL)
 
-# --- has_pass: header-only matching -------------------------------------
-assert has_pass(SECTIONS, r"\bSG1\b"), "SG1 header + review: PASS must pass"
-assert not has_pass(SECTIONS, r"\bSG2\b"), "review: FAIL must not pass"
-# SG3 appears only in C1's body ("next step: SG3") which logs a PASS:
-assert not has_pass(SECTIONS, r"\bSG3\b"), "body mention must not validate SG3"
-assert has_pass(SECTIONS, r"FINAL\s+GATE"), "FINAL GATE section must pass"
-# SG1 must not prefix-match SG12:
-assert not has_pass(journal_sections("## C1 x SG12\n- review: PASS"), r"\bSG1\b")
+class StopAuditTests(unittest.TestCase):
+    def _workspace(self, manifest=None, plan=False):
+        directory = tempfile.TemporaryDirectory()
+        root = Path(directory.name)
+        supergoal = root / ".supergoal"
+        supergoal.mkdir()
+        if manifest is not None:
+            (supergoal / "run_manifest.json").write_text(
+                json.dumps(manifest, sort_keys=True), encoding="utf-8"
+            )
+        if plan:
+            (supergoal / "PLAN.md").write_text("- [ ] active work\n", encoding="utf-8")
+        return directory, root, supergoal
 
-# --- anti-gaming: anchored PASS, multi-SG headers ----------------------
-# Quoted prose containing "review: PASS" - e.g. the hook's own block message
-# pasted into a cycle entry - must never validate a box:
-quoted = journal_sections(
-    "## C1 2026-07-07 SG1\n"
-    "- observe: hook said \"so every checked box has its 'review: PASS' in\"\n"
-    "- reason: the audit wants review: PASS logged\n"
-)
-assert not has_pass(quoted, r"\bSG1\b"), "quoted PASS text must not validate"
-# The prescribed list-item form still validates (with or without indent):
-assert has_pass(journal_sections("## C1 SG1\n- review: PASS - ok\n"), r"\bSG1\b")
-assert has_pass(journal_sections("## C1 SG1\n  - review: PASS - ok\n"), r"\bSG1\b")
-# A header naming more than one SG validates none of them:
-multi = journal_sections("## C9 2026-07-07 SG1 SG2\n- review: PASS - both\n")
-assert not has_pass(multi, r"\bSG1\b"), "multi-SG header must validate nothing"
-assert not has_pass(multi, r"\bSG2\b"), "multi-SG header must validate nothing"
+    def test_complete_manifest_allows_stop(self):
+        directory, root, supergoal = self._workspace(_complete_manifest())
+        with directory:
+            self.assertEqual(completion_problems(supergoal), [])
+            self.assertIsNone(hook_decision({"cwd": str(root), "stop_hook_active": False}))
 
-# --- plan_problems -------------------------------------------------------
-plan_ok = "- [x] SG1: a | verify: `t` | done-when: d\n- [x] FINAL: gate PASS\n"
-assert plan_problems(plan_ok, SECTIONS) == [], "clean plan must report nothing"
+    def test_execution_manifest_is_advised_not_complete(self):
+        manifest = _complete_manifest("execution")
+        for key in ("integration", "review", "final_verification"):
+            manifest.pop(key)
+        directory, root, _ = self._workspace(manifest)
+        with directory:
+            decision = hook_decision({"cwd": str(root), "stop_hook_active": False})
+            self.assertEqual(decision["decision"], "block")
+            self.assertIn("not complete", decision["reason"])
 
-plan_bad = (
-    "- [ ] SG9: open | verify: `t` | done-when: d\n"   # unchecked -> problem
-    "- [x] SG2: b | verify: `t` | done-when: d\n"      # FAIL verdict -> problem
-    "- [x] SG3: c | verify: `t` | done-when: d\n"      # body-only mention -> problem
-    "- [!] SG4: blocked: upstream outage\n"            # escape hatch -> ignored
-    "- [x] FINAL: gate PASS\n"
-)
-problems = plan_problems(plan_bad, SECTIONS)
-text = " | ".join(problems)
-assert "SG9" in text and "unchecked" in text
-assert "SG2" in text and "SG3" in text, "unreviewed checked boxes must be named"
-assert "SG4" not in text, "- [!] items are exempt"
+    def test_invalid_manifest_and_missing_active_manifest_are_advised(self):
+        invalid = _complete_manifest()
+        invalid["controller"]["model"] = ""
+        directory, root, _ = self._workspace(invalid)
+        with directory:
+            decision = hook_decision({"cwd": str(root)})
+            self.assertIn("controller needs a model", decision["reason"])
 
-missing_final = plan_problems("- [x] SG1: a\n", SECTIONS)
-assert any("FINAL" in p for p in missing_final), "plan without FINAL line must block"
+        directory, root, _ = self._workspace(plan=True)
+        with directory:
+            decision = hook_decision({"cwd": str(root)})
+            self.assertIn("run_manifest.json is missing", decision["reason"])
 
-final_no_gate = plan_problems("- [x] FINAL: gate\n", journal_sections("## C1 x SG1\n- review: PASS"))
-assert any("FINAL GATE" in p for p in final_no_gate), "checked FINAL needs its section"
+    def test_inactive_or_repeat_stop_does_not_nudge(self):
+        directory, root, _ = self._workspace()
+        with directory:
+            self.assertIsNone(hook_decision({"cwd": str(root)}))
+            self.assertIsNone(hook_decision({"cwd": str(root), "stop_hook_active": True}))
 
-# --- anti-gaming: '- [!] FINAL' has no legitimate blocked state --------------------
-bang_final = plan_problems("- [x] SG1: a\n- [!] FINAL: blocked: no time\n", SECTIONS)
-assert any("FINAL" in p and "blocked" in p for p in bang_final), \
-    "- [!] FINAL must block; it was a one-character zero-gate exit"
+    def test_cli_check_manifest_and_stdin_hook(self):
+        directory, root, supergoal = self._workspace(_complete_manifest())
+        with directory:
+            manifest = supergoal / "run_manifest.json"
+            checked = subprocess.run(
+                [sys.executable, str(SCRIPT), "--check-manifest", "--manifest", str(manifest)],
+                capture_output=True,
+                check=False,
+                text=True,
+            )
+            self.assertEqual(checked.returncode, 0, checked.stdout)
+            self.assertTrue(json.loads(checked.stdout)["pass"])
 
-# --- anti-gaming: stale FINAL GATE after a REOPEN ----------------------------------
-reopened = journal_sections(
-    "## FINAL GATE 2026-07-05\n- review: PASS - audited\n"
-    "## REOPEN 2026-07-07\n- defect: regression against success criterion\n"
-)
-assert stale_final_gate_problems(reopened), \
-    "REOPEN postdating the newest FINAL GATE must be reported"
-# and it reaches plan_problems only when FINAL is checked:
-stale = plan_problems("- [x] FINAL: gate\n", reopened)
-assert any("REOPEN" in p for p in stale), "checked FINAL + later REOPEN must block"
-# a fresh gate after the reopen clears it:
-regated = journal_sections(
-    "## FINAL GATE 2026-07-05\n- review: PASS - audited\n"
-    "## REOPEN 2026-07-06\n- defect: x\n"
-    "## FINAL GATE 2026-07-07\n- review: PASS - re-audited\n"
-)
-assert stale_final_gate_problems(regated) == [], "fresh gate must clear the reopen"
-assert stale_final_gate_problems(SECTIONS) == [], "no REOPEN -> nothing to report"
+            execution = _complete_manifest("execution")
+            for key in ("integration", "review", "final_verification"):
+                execution.pop(key)
+            manifest.write_text(json.dumps(execution), encoding="utf-8")
+            event = subprocess.run(
+                [sys.executable, str(SCRIPT)],
+                input=json.dumps({"cwd": str(root), "stop_hook_active": False}),
+                capture_output=True,
+                check=False,
+                text=True,
+            )
+            self.assertEqual(event.returncode, 0, event.stderr)
+            self.assertEqual(json.loads(event.stdout)["decision"], "block")
 
-# --- pending_runs --------------------------------------------------------
-exp = "| run-001 | SG2 | h | none | val 0.7 | SUPPORTED |\n| run-002 | SG3 | h | d | - | PENDING |"
-assert len(pending_runs(exp)) == 1, "exactly one PENDING row expected"
+    def test_snapshot_excludes_state_files_and_find_walks_up(self):
+        directory, root, supergoal = self._workspace(_complete_manifest())
+        with directory:
+            nested = root / "src" / "pkg"
+            nested.mkdir(parents=True)
+            source = root / "src" / "main.py"
+            source.write_text("one\n", encoding="utf-8")
+            first = workspace_snapshot_id(supergoal)
+            (supergoal / "JOURNAL.md").write_text("state changes do not count\n", encoding="utf-8")
+            self.assertEqual(first, workspace_snapshot_id(supergoal))
+            source.write_text("two\n", encoding="utf-8")
+            self.assertNotEqual(first, workspace_snapshot_id(supergoal))
+            self.assertEqual(find_supergoal(nested), supergoal.resolve())
 
-# --- design_inspection_problems (cluster design gate) --------------------
-# Keyed on DESIGN.md presence so tiering stays intact: a small mission has a
-# PLAN.md but no DESIGN.md and must never be blocked by this check.
-with tempfile.TemporaryDirectory() as _d:
-    dp = Path(_d)
 
-    # small mission: PLAN present, no DESIGN.md -> not blocked
-    assert design_inspection_problems(dp, plan_present=True) == [], \
-        "small mission (no DESIGN.md) must not be blocked by the design gate"
-
-    # degenerate guard: DESIGN.md but no PLAN.md (crashed Agree write) - this
-    # check stays silent; the BRIEF-without-PLAN check owns that state
-    (dp / "DESIGN.md").write_text(
-        "## DESIGN DRAFT v1\n- approach: x\n", encoding="utf-8"
-    )
-    assert design_inspection_problems(dp, plan_present=False) == [], \
-        "no PLAN.md -> this check stays silent (other checks own that state)"
-
-    # design phase underway or dodged: DESIGN.md + PLAN.md, no inspection -> blocked
-    blocked = design_inspection_problems(dp, plan_present=True)
-    assert blocked and "FINAL DESIGN INSPECTION" in blocked[0], \
-        "DESIGN.md without a passed inspection must block"
-
-    # inspection present but not implementation-ready -> blocked
-    (dp / "DESIGN.md").write_text(
-        "## DESIGN DRAFT v1\n- approach: x\n"
-        "## FINAL DESIGN INSPECTION 2026-07-07\n"
-        "- design-final: REVISE - gaps remain\n"
-        "- implementation-ready: no\n",
-        encoding="utf-8",
-    )
-    not_ready = design_inspection_problems(dp, plan_present=True)
-    assert not_ready and "implementation-ready" in not_ready[0], \
-        "inspection present but not ready must block"
-
-    # inspection present and ready -> passes
-    (dp / "DESIGN.md").write_text(
-        "## DESIGN DRAFT v1\n- approach: x\n"
-        "## FINAL DESIGN INSPECTION 2026-07-07\n"
-        "- design-final: GO - complete\n"
-        "- implementation-ready: yes\n",
-        encoding="utf-8",
-    )
-    assert design_inspection_problems(dp, plan_present=True) == [], \
-        "ready inspection must pass"
-
-    # anti-gaming: the LAST inspection wins - a failed block followed by a passed
-    # re-inspection must not permanently block Close
-    (dp / "DESIGN.md").write_text(
-        "## DESIGN DRAFT v1\n- approach: x\n"
-        "## FINAL DESIGN INSPECTION 2026-07-06\n"
-        "- design-final: REVISE - gap\n- implementation-ready: no\n"
-        "## DESIGN DRAFT v2\n- approach: y\n"
-        "## FINAL DESIGN INSPECTION 2026-07-07\n"
-        "- design-final: GO - resolved\n- implementation-ready: yes\n",
-        encoding="utf-8",
-    )
-    assert design_inspection_problems(dp, plan_present=True) == [], \
-        "re-inspection pass must clear the earlier failed block"
-
-# --- mechanism_contract_problems (presence only) -------------------------
-with tempfile.TemporaryDirectory() as _d:
-    dp = Path(_d)
-    # no Novelty -> skip even if DESIGN lacks the contract
-    (dp / "DESIGN.md").write_text("## DESIGN DRAFT v1\n- approach: x\n", encoding="utf-8")
-    assert mechanism_contract_problems(dp) == [], \
-        "non-mechanism missions (no ## Novelty) must not be blocked"
-    (dp / "RESEARCH.md").write_text(
-        "## Claims\n### E001\n- claim: x\n## Novelty\n- verdict: possibly-novel\n",
-        encoding="utf-8",
-    )
-    missing_heading = mechanism_contract_problems(dp)
-    assert missing_heading and "Research design contract" in missing_heading[0], \
-        "Novelty without contract heading must block"
-    (dp / "DESIGN.md").write_text(
-        "## DESIGN DRAFT v1\n"
-        "## Research design contract\n"
-        "1. failure-mode: boundary bleed (E014)\n"
-        "2. tensor-mechanism: add B_geo to attn logits\n"
-        "3. equation: softmax(QK^T/sqrt(d)+B) V\n"
-        "4. gradient-intuition: n/a - not a loss term\n"
-        "5. novelty: possibly-novel (S010)\n"
-        "6. ablation-matrix: baseline; +module; param-matched control\n"
-        "7. kill-criteria: no gain vs matched control on proxy\n",
-        encoding="utf-8",
-    )
-    assert mechanism_contract_problems(dp) == [], "complete seven labels must pass"
-    (dp / "DESIGN.md").write_text(
-        "## DESIGN DRAFT v1\n"
-        "## Research design contract\n"
-        "1. failure-mode: x\n"
-        "2. tensor-mechanism: y\n"
-        "3. equation: z\n",
-        encoding="utf-8",
-    )
-    partial = mechanism_contract_problems(dp)
-    assert partial and "missing labeled line" in partial[0], \
-        "partial contract must name missing labels"
-    assert "kill-criteria" in partial[0]
-
-# --- find_supergoal ------------------------------------------------------
-with tempfile.TemporaryDirectory() as _d:
-    root = Path(_d)
-    sg = root / ".supergoal"
-    nested = root / "src" / "pkg"
-    sg.mkdir()
-    nested.mkdir(parents=True)
-    assert find_supergoal(nested) == sg, "walk up to the .supergoal state dir"
-
-with tempfile.TemporaryDirectory() as _d:
-    root = Path(_d)
-    (root / ".git").mkdir()
-    nested = root / "src"
-    nested.mkdir()
-    assert find_supergoal(nested) is None, "stop at git root when no state dir exists"
-
-print("stop_audit self-check: all assertions passed")
+if __name__ == "__main__":
+    unittest.main()
