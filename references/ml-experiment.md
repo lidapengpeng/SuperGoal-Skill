@@ -41,7 +41,9 @@ exists - without it every later claim is unfalsifiable.
 ## EXPERIMENTS.md ledger
 
 One row per run. A row is created as PENDING at launch and MUST be concluded
-with evidence before the task can end (the Stop hook blocks on PENDING).
+with evidence before its owning task can become complete. Keep the task
+`running` or `blocked` in `run_manifest.json` while the row is pending; a
+complete manifest may not use a pending experiment as completion evidence.
 
 ```markdown
 | run | sg | hypothesis | delta vs baseline | metrics | verdict |
@@ -55,9 +57,8 @@ Verdict values: `PENDING` / `SUPPORTED` / `REFUTED` / `INCONCLUSIVE`.
 Refuted rows are evidence, not embarrassment - never delete them.
 
 A row may legitimately stay PENDING across sessions while its run executes.
-The Stop hook will nudge about it at session end: acknowledge by restating
-the waiting state (run id, ETA, resume command) in one line - never by
-fabricating a conclusion before the metrics exist.
+Record the waiting state (run ID, ETA, resume command) in the journal and
+manifest result/reason; never fabricate a conclusion before the metrics exist.
 
 ## Hyperparameter discipline
 
@@ -70,15 +71,15 @@ fabricating a conclusion before the metrics exist.
 
 ## Research design contract (new module / loss / mechanism)
 
-Applies whenever the contribution is a mechanism claim. A design draft - or
-any mid-loop redesign - proposing one is INVALID until it states all seven
-below under a `## Research design contract` heading with the labeled lines
-in `config/designer.toml` (failure-mode, tensor-mechanism, equation,
-gradient-intuition, novelty, ablation-matrix, kill-criteria). The Stop hook
-checks **presence** of those labels when `RESEARCH.md` has a `## Novelty`
-section; debate reviewers attack substance; the plan gate re-checks derived
-subgoals. This is the anti-laziness gate: it converts "be innovative" into a
-constrained search the model cannot answer with a buzzword.
+Applies whenever the contribution is a mechanism claim. A plan node—or any
+mid-loop redesign—proposing one is invalid until its plan/research evidence
+states all seven labeled items below: failure-mode, tensor-mechanism, equation,
+gradient-intuition, novelty, ablation-matrix, and kill-criteria. Record them
+in the human-readable plan/research evidence and connect them to the manifest
+node's verification. The fresh plan reviewer attacks their substance before
+execution; the final reviewer checks that the integrated diff implements the
+claimed mechanism. This converts “be innovative” into a constrained,
+falsifiable search rather than a buzzword.
 
 1. **Failure mode** - the observed, evidenced failure the mechanism
    addresses: an error analysis, a cited claim (E-ID), or a journal/
@@ -98,8 +99,8 @@ constrained search the model cannot answer with a buzzword.
 5. **Prior-work basis and novelty check** - the idea-atom claims it
    composes (E-IDs), plus a novelty-search verdict from the researcher:
    `already-done | minor-variant | similar-mechanism-other-task |
-   possibly-novel`. An unchecked novelty claim does not survive the design
-   debate; an `already-done` verdict kills the idea and earns an `L-`
+   possibly-novel`. An unchecked novelty claim does not survive plan review;
+   an `already-done` verdict kills the idea and earns an `L-`
    lesson so it is never re-proposed.
 6. **Ablation matrix** - baseline; each component toggled independently;
    and a parameter/compute-matched control. A gain that disappears under

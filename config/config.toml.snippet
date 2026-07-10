@@ -1,18 +1,19 @@
-# SuperGoal: merge into ~/.codex/config.toml or <repo>/.codex/config.toml
+# SuperGoal default profile: merge this adaptive profile into
+# ~/.codex/config.toml or <repo>/.codex/config.toml.
+#
+# It caps the current Codex 0.144 runtime at ten spawned agent threads.
+# The manifest separately caps all direct task records at ten; the controller
+# chooses the actual fan-out from its validated dependency DAG.
+model = "gpt-5.6-sol"
+model_reasoning_effort = "ultra"
 
-# Strong-model defaults for SuperGoal missions and spawned agents.
-model = "gpt-5.5"
-review_model = "gpt-5.5"
-model_reasoning_effort = "xhigh"
-plan_mode_reasoning_effort = "xhigh"
-
-# SuperGoal requires this feature flag (Codex >= 0.128).
-# Alternatively run: codex features enable goals
 [features]
 goals = true
 
-# Subagent bounds: peak concurrency is the 4-reviewer debate plus one margin
-# slot (parallel mode uses separate threads, not subagents); no recursion.
 [agents]
-max_threads = 5
+max_threads = 10
 max_depth = 1
+
+# The optional version-pinned v2 profile is a separate, mutually exclusive
+# sample: config/config.v2-strict.toml.snippet. Do not merge its contents with
+# this adaptive [agents] profile.

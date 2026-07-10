@@ -1,0 +1,15 @@
+# SuperGoal local, version-pinned Codex 0.144 v2 experiment.
+#
+# This is not part of the public documented configuration surface. Use it only
+# after a same-version, same-surface canary. The session cap below is
+# illustrative, not a controller-plus-N worker calculation or exact-N promise.
+model = "gpt-5.6-sol"
+model_reasoning_effort = "ultra"
+
+[features]
+goals = true
+
+[features.multi_agent_v2]
+enabled = true
+max_concurrent_threads_per_session = 11 # illustrative local experiment only
+hide_spawn_agent_metadata = false

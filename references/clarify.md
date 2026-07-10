@@ -1,204 +1,169 @@
 # Clarify playbook (Recon, Clarify, Agree)
 
-Purpose: turn a fuzzy request into a contractable objective with the fewest
-questions that actually change scope, risk, or evaluation - and with zero
-silent assumptions.
+Purpose: turn a fuzzy request into a bounded, verifiable mission with the
+fewest questions that actually change scope, risk, or evaluation. Do not make
+the user answer questions the repository can answer.
 
 ## Recon before questions
 
-Run a quick, read-only pass before composing any question. Timebox it to
+Run a short read-only pass before composing any question. Timebox it to
 minutes. Gather:
 
-- stack, entry points, and repo layout;
-- build / test / eval commands (Makefile, package scripts, CI config);
+- stack, entry points, and repository layout;
+- build, test, evaluation, and CI commands;
 - version pins and runtime environment;
-- prior art: branches, TODOs, related issues or partial attempts;
-- for ML repos: dataset location, configs, existing baselines or run logs.
+- related code, TODOs, branches, issues, and partial attempts;
+- protected paths, generated files, lockfiles, and shared surfaces;
+- for ML: dataset location, configuration, baselines, and run logs.
 
-Two outputs:
+Produce two things:
 
-1. **Kill list** - questions the repo already answered. Never ask these;
-   state them as findings.
-2. **Grounding** - every question you do ask cites what recon found:
-   "CI runs `pytest -q` on push; is exit 0 there the success criterion?"
-   beats "how do I know it works?".
+1. **Kill list:** questions recon already answered. State these as findings;
+   never ask them.
+2. **Grounding:** every remaining question cites what recon found. For
+   example, "CI runs `pytest -q`; is exit 0 there the success criterion?" is
+   better than "How do I know it works?"
 
-Deeper evidence (official docs via MCP, upstream issues, papers) happens
-inside the Loop, following the evidence ladder in `loop-daor.md` - do not
-stall the interview on it.
+External research belongs after Agree and only if uncertainty changes a
+technical choice, safety decision, or dependency edge. Do not turn intake
+into an automatic research fan-out.
 
 ## Question discipline
 
-- Format: 2-4 lettered options plus "or describe your own". Recommended
-  option first, marked "(recommended)" with a one-line reason. Every option
-  states its trade-off in one clause.
-- Batching: up to 3 questions in one message when they are independent
-  (no answer changes another question). Ask serially only when an answer
-  would reshape what you ask next. At most 2 waves and 5 questions total.
-- Required Codex wiring is installed during Setup and does not consume a
-  question slot. Do not ask whether to install Stop hook or custom agents;
-  SuperGoal assumes its trusted Codex environment.
-- If the request already pins every dimension, ask zero questions and go
-  straight to Agree with the assumption ledger.
+- Offer two to four lettered choices plus "describe your own". Put the
+  recommended choice first and say its trade-off in one sentence.
+- Ask up to three independent questions at once, up to two waves and five
+  total questions. Ask serially only when an answer changes the next question.
+- A precise request gets no invented questions: state safe defaults in the
+  assumption ledger and request one confirmation at Agree.
+- Required SuperGoal wiring is not a product question. Install or report a
+  collision during Setup; never ask the user to choose an internal role card.
 
-## Skip test (run before every question)
+## Skip test
 
-Ask only if ALL three hold:
+Ask a question only when all of these hold:
 
-1. The answer changes what you would build, protect, or measure - the
-   evidence genuinely supports two or more semantically distinct
-   implementations, not cosmetic variants of one.
-2. Recon could not answer it (and cannot within ~2 minutes) - further
-   exploration would no longer narrow the options.
+1. Its answer changes what would be built, protected, measured, or delegated.
+2. Recon cannot answer it quickly.
 3. A wrong guess would be expensive to undo.
 
-Navigational vs informational: a question whose answer lives in the repo
-(which file, which command, which version) is navigational - recon answers
-it, never the user. Ask the user only informational questions - intent,
-business rules, hidden constraints, priorities - facts that exist only in
-their head.
+Questions answered by the repository are navigational, not informational.
+Ask the user about intent, hidden constraints, business priorities, and
+authority—not paths, versions, or commands that can be observed.
 
-## Mandatory pins (may never stay implicit)
+## Mandatory pins
 
-Loop engineering stands on verification and bounded iteration. Two answers
-must be pinned before Agree, even when every other question is skipped:
+The following must be explicit before Agree:
 
-1. **Success criterion** - the exact command, metric, and threshold that
-   decide "done". Refuse a purely subjective criterion; negotiate a
-   checkable proxy. Drill until objective: the command, the metric, the
-   threshold, and the file or log the number is read from - e.g.
-   "`pytest tests/ -q` exits 0", "val mIoU >= 0.78 in
-   `runs/<id>/metrics.json`", "`npx playwright test` green and the deployed
-   route returns 200 with the expected JSON shape via `curl`", or "crawler
-   processes the 50-URL fixture list with >= 95% parse success and zero
-   robots.txt violations in `crawl-report.json`". "Looks right in the
-   browser" is the web-domain version of a subjective criterion - convert
-   it to an e2e assertion or a measurable audit before Agree. This literal
-   text becomes the verification surface and each PLAN.md `verify:` field.
-2. **Iteration budget** - phrased for the user as "how long may I iterate
-   before checking in with you": maximum DAOR cycles (default: 10, earlier
-   if any stop rule fires; 5 when the tier check classified the mission
-   high-risk - SKILL.md's Tier check owns that definition). ML adds
-   GPU-hours and full-run caps.
+1. **Success criterion:** exact command, metric, threshold, and where the
+   result is read. Convert "looks right" into a measurable proxy or an e2e
+   assertion. Examples: `pytest tests/ -q` exits 0; a metric in a named JSON
+   file reaches a threshold; a crawler processes a fixed fixture with a known
+   success rate and no policy violations.
+2. **Budget:** maximum DAOR cycles, wall-clock/research allowance, and maximum
+   direct task records (0–10 total, including optional research), plus for ML
+   GPU-hours and full-run caps. The budget is a ceiling, not an instruction to
+   use every task slot.
 
-Pin each by asking, or - when clearly inferable - by writing the default
-into the assumption ledger and having the user confirm it at Agree. Silent
-defaults are forbidden for these two.
+Ask these directly or put a clearly inferred default in the assumption ledger
+for the user to confirm. Never hide worker cost inside a generic “research”
+line.
 
 ## Dimension checklist
 
-Walk these five dimensions; ask only the ones that survive the skip test:
+Ask only dimensions that survive the skip test:
 
-- **Aim** - success outcome and explicit non-goals.
-- **Boundaries** - which code areas may change; dependency policy;
-  wall-clock constraints; protected paths; checkpoint policy - whether the
-  skill may make small green-state commits (default: no, journal notes
-  only).
-- **Context** - prior work to build on; reproduction steps; versions;
-  runtime environment.
-- **Done** - the mandatory success criterion above, plus any deliverable
-  artifacts.
-- **Evidence / Exit** - source of truth when results conflict (repo's own
-  eval suite is the usual recommendation); the mandatory iteration budget.
+- **Aim:** desired outcome and explicit non-goals.
+- **Boundaries:** allowed code areas, dependency policy, protected paths,
+  external side effects, worktree policy, and checkpoint policy.
+- **Context:** prior work, reproduction steps, versions, and runtime.
+- **Done:** success criterion and required deliverables.
+- **Evidence / exit:** authoritative source of truth, budget, blocked-stop
+  behavior, and whether external facts could change the plan.
 
-## ML composite question (training / experiment tasks only)
+## ML composite question
 
-Dataset, compute, and baseline are all mandatory for training tasks, but
-they ship as ONE message so they never crowd out the other dimensions.
-Present all three parts compactly; the user answers in one reply
-(e.g. "1A 2B 3: paper number only"). Any part recon already pinned is
-dropped and stated as a finding.
+For training or experiment work, ask dataset, compute, and baseline together
+in one compact message. Drop parts recon already pinned.
 
-"Three quick ML facts - answer like '1A 2A 3B':
+```text
+Three ML facts — answer like “1A 2A 3B”:
 
-1. Dataset status
-   - A. Ready; this repo's loaders already consume it (recommended if loaders exist)
-   - B. Raw data present; needs analysis and preprocessing first
-   - C. Needs downloading or collection - from where?
-2. Compute budget
-   - A. Smoke tests + up to 5 short proxy runs + up to 2 full training runs (recommended default)
-   - B. A GPU-hours cap - how many hours?
-   - C. No hard cap; I will still smoke-test before every full run
-3. Baseline
-   - A. Reproducible: config / checkpoint / metric exists - where? (recommended starting point)
-   - B. Only a paper or README number; not yet reproduced locally
-   - C. None; establishing one becomes the first subgoal"
+1. Dataset: A. ready in this repo (recommended) | B. raw/preprocessing needed |
+   C. needs collection, specify source
+2. Compute: A. smoke + bounded proxy/full runs (recommended) | B. GPU-hour cap |
+   C. no hard cap, still smoke-test first
+3. Baseline: A. reproducible config/checkpoint/metric (recommended) |
+   B. paper/README only | C. none; baseline becomes the first plan node
+```
 
 ## Scope-to-mission rule
 
-If the goal is project-sized ("build me a recommendation system"), do not
-plan the whole project as one mission. Carve out the first bounded mission -
-the smallest outcome with a real success criterion that de-risks the rest -
-propose it at Agree, and file the remainder as entries in
-`.supergoal/BACKLOG.md` (`lifecycle.md`). One focused, falsifiable loop at a
-time.
+If the request is project-sized, carve out the smallest outcome that can be
+verified and meaningfully de-risks the rest. Put the remainder in
+`.supergoal/BACKLOG.md`. One DAG should describe one bounded mission, not an
+aspirational roadmap.
 
 ## Assumption ledger
 
-Every dimension you did not ask about gets a written entry:
+Every dimension not asked becomes an explicit, risk-labelled assumption:
 
 ```markdown
-- [low] Dependency policy: no new runtime deps (none present for this area).
-- [low] Boundaries: changes stay under src/pipeline/ (task names only it).
-- [low] Checkpoints: journal notes only; no commits by me unless you opt in.
-- [HIGH] Data license permits redistribution -> must ask, do not assume.
+- [low] Dependency policy: no new runtime dependency unless the plan review finds it necessary.
+- [low] Boundaries: implementation stays under src/pipeline/ and its tests.
+- [low] Checkpoints: journal notes only; no commits unless the user opts in.
+- [HIGH] Data license permits redistribution -> ask; do not assume.
 ```
 
-Rules:
-
-- Label each entry `[low]` or `[HIGH]` risk: how expensive is it to undo if
-  the guess is wrong?
-- A `[HIGH]` entry may not remain an assumption. Convert it into a question
-  in the next wave (or the blocked-stop condition if the user is absent).
-- `[low]` entries are presented at Agree for one-shot confirmation - the
-  user corrects any line or says "go".
-- The ledger is copied into `BRIEF.md`; a wrong confirmed assumption is a
-  shared decision, a wrong silent assumption is your bug.
+High-risk assumptions may not remain assumptions. Turn them into a question,
+a dependency that blocks execution, or a user checkpoint.
 
 ## Agree message template
 
-One message; the user replies "go" or corrects lines. This is the consent
-checkpoint - never start the Loop before it is answered.
+Send one message. The user replies `go` or corrects a line; any scope addition
+returns to Clarify.
 
 ```markdown
 ## Objective
-<one line, an end state, not an activity>
+<one end state, not an activity>
 
 ## Success criterion
-<exact command / metric / threshold and where it is read from>
+<exact command / metric / threshold and source of truth>
 
-## Plan sketch
-1. SG1 <outcome> - verify: `<command>`
-2. SG2 ...          (riskiest first; ML: dataset + baseline first;
-                     provisional on standard/high-risk tiers - the design
-                     phase derives the real subgoals)
+## Provisional plan
+1. <outcome or investigation> — verify: `<command or evidence condition>`
+2. <dependent outcome> — verify: `<command>`
+<The controller will validate the executable DAG after approval.>
 
-## Tier (standard/high-risk missions only)
-<tier + why, and the design cost this approves: "standard - ~2 survey
-questions, roughly 60-100 sources, 1-3 debate rounds before implementation">
+## Risk and execution policy
+- tier: <small|standard|high-risk + reason>
+- research: <not needed | bounded question(s) and why uncertainty matters>
+- delegation: up to <0–10> direct task records total; research counts; no filler work
+- integration: controller-owned worktree and full verification after merge
 
 ## Boundaries
-<allowed areas, protected paths, dependency policy, checkpoint policy>
+<allowed paths, protected paths, dependency and checkpoint policy>
 
 ## Assumptions (correct any line)
 - [low] ...
-- [low] ...
 
 ## Budget
-<N DAOR cycles before check-in; ML: GPU-hours / full runs>
+<DAOR cycles, wall-clock, research allowance, maximum direct task-record count;
+ML GPU-hours/full runs if applicable>
 
 ## If blocked
-<what I will report and what input would unlock progress>
+<what will be reported and what input unlocks it>
 
 Reply "go" to start, or correct any line above.
 ```
 
-The Tier section is present only on standard/high-risk missions - one "go"
-approves the design spend along with the scope; small missions omit it.
+One `go` approves the contract and its maximum spend. It does not pre-approve
+an unreviewed DAG, a destructive action, or a worker count that has no
+independent work to justify it.
 
-After "go", create the same content as one `/goal` command (`codex.md`).
-`/goal` is the required mission contract layer for SuperGoal; if goals are
-not enabled, stop and instruct the user to enable them before the Loop starts.
+On `go`, the controller writes `PLAN.md`, `BRIEF.md`, and a plan-phase
+`run_manifest.json`, then creates one `/goal`. The manifest stores machine
+state; `BRIEF.md` stores the human-approved contract.
 
 ## BRIEF.md template
 
@@ -207,12 +172,12 @@ not enabled, stop and instruct the user to enable them before the Loop starts.
 
 ## Objective (EN)
 ## Non-goals
-## Boundaries (files, deps policy, checkpoint policy)
+## Boundaries (allowed/protected paths, dependencies, checkpoint policy)
 ## Context and prior work
 ## Success criterion (command / metric / threshold)
 ## Eval and source of truth
-## Budgets (DAOR cycles / GPU-hours / full runs)
+## Budget (DAOR / research / 0–10 total task-record ceiling / wall-clock / ML limits)
 ## ML status (dataset / baseline)          <- ML tasks only
-## Recon findings                          <- Recon writes, Loop appends
+## Recon findings
 ## Assumption ledger (each [low] or [HIGH], confirmed at Agree)
 ```

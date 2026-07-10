@@ -1,126 +1,125 @@
-# Adversarial review protocol (Gate)
+# Adversarial review protocol (Gates)
 
-Maker and checker must be different contexts. A model reviewing its own work
-converges on self-agreement; the stop condition must depend on the checker's
-verdict, not the maker's belief.
+Maker and checker must use different contexts. The controller may assemble
+evidence, but it may not turn its own conclusion into a completion verdict.
+Use the named, read-only `supergoal_reviewer` with the `[reviewer]` profile
+(shipped default: Sol/max) for plan and final review. A card requests that
+runtime; record actual runtime evidence when it is available rather than
+assuming it.
 
 ## Gates
 
-1. **Plan gate** (tiered) - fires once, before the first implementation
-   cycle: the reviewer attacks the plan against the contract - is this the
-   right problem, is the success criterion checkable and hard to game, which
-   subgoal is most likely to refute the plan, is the riskiest first? The
-   inner loop can satisfy a spec but never fix a wrong one. On
-   standard/high-risk missions it runs AFTER the design phase, on the
-   implementation subgoals derived from the inspected design - a real plan,
-   not a sketch. Skip only when the mission is small (tier definitions live
-   in SKILL.md's Tier check). Verdicts and logging are deliberately
-   different from the completion gates: log a `## PLAN GATE <ISO-date>`
-   section in JOURNAL.md with `plan-review: GO - <one line>`,
-   `plan-review: REVISE - <objection>`, or
-   `plan-review: SKIPPED (small mission) - <one line>`, quoting the user's
-   Agree reply verbatim so the tiering is auditable. Never write
-   `review: PASS` in this section - the Stop hook treats that string as
-   completion evidence for any `SG<id>` the section happens to name.
-   REVISE goes back to the user: amend the contract at Agree, then re-gate.
-2. **Subgoal gate** (always) - fires whenever a subgoal claims done, before
-   its PLAN.md box is checked.
-3. **Final gate** (always) - fires before Close concludes: the reviewer
-   audits the whole plan, ledger, and diff against BRIEF.md, including that
-   Observe-0 baseline evidence exists and budgets were respected. The final
-   gate is wired into machinery: PLAN.md's last line is the
-   `- [ ] FINAL: ...` item, and the Stop hook only accepts it checked when
-   JOURNAL.md contains a `## FINAL GATE` section logging `review: PASS`.
+1. **Plan gate:** after the controller builds the dependency DAG and before
+   any write worker starts. Required for standard/high-risk missions; small
+   missions receive a compact review, not an unlogged skip. The reviewer
+   attacks scope, verification, dependencies, worktree/path ownership,
+   research gaps, and whether every proposed worker node is genuinely
+   independent.
+2. **Subgoal gate:** before checking a `PLAN.md` item. The reviewer attacks
+   the claim, its current snapshot, verify output, and any worker result.
+3. **Final gate:** after controller integration and complete verification.
+   A fresh reviewer audits the current merged diff and all claimed outcomes.
 
-## Design gates (standard/high-risk missions only)
+The plan review is stored at `plan.review` in `run_manifest.json`; the final
+review is stored at top-level `review`. Both use:
 
-Standard/high-risk missions open the Loop with a design-review layer -
-after Agree, before any implementation cycle - detailed in
-`references/super-agent-cluster.md`: four differentiated reviewers
-(`design-reviewer`, `risk-reviewer`, `verifier`, `leanness-reviewer`) debate
-the design for 1-3 bounded rounds, `synthesizer` adjudicates any REVISE round,
-and `reviewer` in *design mode* runs an independent final inspection. These
-verdicts use markers deliberately disjoint from the completion gates so the
-Stop hook never mistakes a design verdict for completion evidence: debate
-rounds use `GO|REVISE|BLOCK`; the final inspection logs `design-final:` and
-`implementation-ready:` in `DESIGN.md`. Neither may ever contain the string
-`review: PASS`, which stays reserved for completion.
+```json
+{
+  "role": "supergoal_reviewer",
+  "verdict": "PASS",
+  "evidence": ["...current evidence..."]
+}
+```
 
-Same `reviewer` agent, two modes: design mode (the final design inspection -
-audits `DESIGN.md` with a fresh context that never saw the debate) and
-completion mode (subgoal and final gates below, unchanged; its code checklist
-includes the leanness dimension - file count, patchwork, dead code,
-`ponytail:` comments).
+`PASS` in the example is not a default: the validator only accepts it once an
+actual fresh reviewer has returned that verdict. `FAIL` and `CANNOT-VERIFY`
+remain valid review outcomes in the journal but cannot advance the plan or
+complete a run.
 
-## Reviewer requirement
+## Reviewer packet
 
-Every claim gets a logged verdict from the required `reviewer` subagent.
-Tiering changes which gates run, not whether completion claims are reviewed.
+Explicitly invoke `supergoal_reviewer` by name. Give it the allegation to
+attack, not a conclusion to endorse:
 
-- **Plan gate:** may be skipped for small missions, but the skip must be
-  logged with `plan-review: SKIPPED (small mission)`.
-- **Subgoal gate:** always use the isolated `reviewer` subagent before a PLAN
-  box is checked.
-- **Final gate:** always use the isolated `reviewer` subagent.
-- **Reviewer unavailable:** stop and repair Setup. Do not replace the reviewer
-  with self-review.
+- current run ID, base SHA, and integrated snapshot identity;
+- relevant `BRIEF.md`, `PLAN.md`, manifest node(s), and journal evidence;
+- the raw verification commands and outputs;
+- task ownership, worktree, allowed/forbidden paths, and dependency edges;
+- the actual current diff. Do not curate the diff or omit files on the
+  controller's behalf;
+- for final review, the full merged verification surface and any unresolved
+  risks or blocked tasks.
 
-## How to spawn the reviewer
+Do not give the reviewer the controller's preferred answer. A reviewer who
+only confirms a supplied interpretation cannot catch an omitted file,
+over-broad change, stale baseline, or hidden dependency.
 
-Explicitly spawn the custom `reviewer` agent (read-only, high reasoning
-effort, defined in `config/reviewer.toml`). Hand it:
+## Plan-review checklist
 
-- the claim under review, framed as an allegation to attack - never as an
-  established fact;
-- the verify command and its logged output;
-- relevant JOURNAL.md / EXPERIMENTS.md excerpts;
-- the constraints section of BRIEF.md.
+The reviewer must be able to answer:
 
-Do NOT hand it a curated diff or changed-file list: the reviewer derives the
-diff itself (`git diff` / `git status` from its own read-only sandbox), so an
-omitted file - say, the one where a failing assertion was deleted - cannot be
-laundered out of review by the packet.
+- Does the DAG pursue the agreed objective rather than a plausible substitute?
+- Is each success condition observable, current, and difficult to game?
+- Are prerequisites complete and is the graph acyclic?
+- Is research actually needed for an unresolved decision, and are its gaps
+  explicit rather than silently assumed away?
+- Does each writable task have a unique worktree and non-overlapping owned
+  paths unless it depends on the earlier owner?
+- Are shared files and integration reserved for the controller?
+- Is the number of worker nodes justified by independent ready work, with zero
+  workers accepted when delegation adds no value?
+- Are destructive, security, privacy, billing, and ML risks treated before
+  execution?
 
-Do not include your own conclusions or justifications beyond the raw claim
-and evidence; a persuaded reviewer is a broken reviewer.
+A missing verification command, cycle, path collision, unresolved high-risk
+assumption, or unsupported role/runtime claim is a blocking finding.
 
-## Reviewer checklist
+## Subgoal and final checklist
 
-The operative checklist lives in `config/reviewer.toml` - the copy the agent
-is guaranteed to load; it covers the code dimension (correctness, regressions,
-security, test honesty, generative checks, over-broad diffs, leanness) and
-the experiment dimension for ML claims (baseline comparability, leakage,
-metric parsing, noise vs seed variance, ablation isolation, quoted-log
-conclusions). This file does not restate it: two copies of a checklist is
-drift, not safety.
+For every completion allegation, attack:
 
-## Verdict protocol (exactly one)
+- correctness, regressions, security/privacy impact, error handling, and
+  generated/lockfile drift;
+- whether the diff is within the task's allowed paths and the controller
+  integrated it in the expected order;
+- test honesty: the command, output, artifacts, environment, and snapshot;
+- whether an ML result has a comparable baseline, controlled ablation, and a
+  real metric rather than cherry-picked narration;
+- leanness: dead code, duplicated abstractions, placeholder paths, broad
+  refactors, and unexplained dependencies;
+- whether all terminal manifest tasks, integration evidence, and final
+  verification describe the same merged state.
 
-- **PASS** - no blocking counterexample found; non-blocking notes listed
+## Verdict protocol
+
+Return exactly one of:
+
+- **PASS:** no blocking counterexample found; list non-blocking notes
   separately.
-- **FAIL** - at least one concrete counterexample or broken claim; must
-  include the minimal reproduction or reasoning, and what evidence would
-  flip the verdict.
-- **CANNOT-VERIFY** - required evidence is missing; must name the exact
-  missing command, log, or experiment.
+- **FAIL:** name a concrete counterexample, minimal reproduction/reasoning,
+  and what must change.
+- **CANNOT-VERIFY:** name the exact missing command, artifact, runtime fact,
+  or access needed to decide.
 
-## Handling verdicts
+Every verdict is authoritative only for its named snapshot. A later workspace
+change, `FAIL`, or `CANNOT-VERIFY` stales an older `PASS`. The controller logs
+the verdict verbatim in `JOURNAL.md`, attaches evidence to the relevant
+manifest object, and may request another review; it may not soften or
+reinterpret a failure. Only the user can explicitly override a reviewer
+failure.
 
-- Every verdict lands in JOURNAL.md (`review:` field) - no silent reviews.
-  The exact marker format and the Stop hook's header-matching rules live in
-  `references/loop-daor.md` (journal format section); an unlogged PASS is
-  mechanically indistinguishable from no review.
-- FAIL reopens the subgoal: back to Design with the counterexample as input.
-  The maker may not override or re-litigate a FAIL; only the user can,
-  explicitly.
-- CANNOT-VERIFY adds the missing-evidence work as a new PLAN.md subgoal (or
-  a PENDING EXPERIMENTS.md row) before the claim can return to review.
-- Two FAILs on the same subgoal for the same root cause: hard rule 4 fires -
-  return to first principles, no third patch.
+## Handling findings
 
-## If subagents fail
+- **Plan FAIL:** repair the DAG, research gap, ownership boundary, or contract
+  and rerun the plan gate. A material objective/budget/blast-radius change
+  returns to Agree.
+- **Subgoal FAIL:** reopen the node with the counterexample as input. After
+  two failures on the same root cause, re-derive from first principles and
+  request a user decision before a third attempt.
+- **CANNOT-VERIFY:** add the missing evidence as a bounded node or research
+  task; do not relabel absence as PASS.
+- **Reviewer unavailable:** do not check claims or complete the run. Report
+  Setup/runtime failure at the current checkpoint.
 
-Subagents are required for SuperGoal's review gates. If the `reviewer`
-agent cannot be spawned, stop the mission at the current checkpoint, report
-the Setup failure, and do not check any PLAN boxes until the reviewer is
-available.
+The Stop hook can flag an inconsistent final state, but it does not replace a
+fresh reviewer and cannot prove scientific or product correctness.

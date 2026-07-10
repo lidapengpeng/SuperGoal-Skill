@@ -12,15 +12,28 @@
         ]
       }
     ],
-    "SubagentStop": [
+    "SubagentStart": [
       {
-        "matcher": "^(researcher|designer|synthesizer|worker)$",
+        "matcher": "^(supergoal_luna_executor|supergoal_researcher|supergoal_reviewer)$",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/subagent_audit.py\"",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/subagent_audit.py\" --hook-start",
             "timeout": 15,
-            "statusMessage": "SuperGoal write-scope audit"
+            "statusMessage": "SuperGoal state-scope baseline"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "^(supergoal_luna_executor|supergoal_researcher|supergoal_reviewer)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/subagent_audit.py\" --hook-stop",
+            "timeout": 15,
+            "statusMessage": "SuperGoal state-scope advisory"
           }
         ]
       }

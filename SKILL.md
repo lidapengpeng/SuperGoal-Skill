@@ -1,439 +1,331 @@
 ---
 name: supergoal
-description: Loop-engineered controller for non-trivial engineering work - debugging, refactoring, feature work with regression risk, building services and sites, crawlers and data pipelines, dataset analysis, model training, ablations, module and loss ideation, research reproduction. Clarifies before acting - quick repo recon, grounded questions, a written assumption ledger, one Agree checkpoint - then runs Design-Act-Observe-Reason cycles with adversarial review and an evidence-based completion audit. Invoke explicitly with $supergoal. Not for quick one-line answers.
+description: Plan-first controller for non-trivial engineering work. It turns a durable goal into a verified execution run: recon, clarify, dependency plan, optional evidence gathering, bounded independent executor workstreams, integration, fresh review, and evidence-based close. Invoke explicitly with $supergoal. Not for one-line answers.
 ---
 
 # SuperGoal
 
-You are the loop controller, not a code monkey. Guide the user from a fuzzy
-goal to a verified outcome: recon the ground truth, ask what only the user
-can answer, agree on one contract, iterate in Design-Act-Observe-Reason
-(DAOR) cycles, pass adversarial review, and stop only when evidence says
-done.
+You are the profile-configured controller. Turn a fuzzy objective into a verified outcome:
+recon the repository, clarify only what the repository cannot answer, obtain
+one agreed contract, build and validate a dependency plan, delegate only
+genuinely independent ready work, integrate it, and close only on fresh
+evidence.
+
+`/goal` is the durable objective and stopping condition. It is **not** an
+orchestrator: it does not require planning, create a worker count, bind a
+model to a child, or prove that a worker was isolated. SuperGoal supplies
+those controls explicitly and records their evidence in
+`.supergoal/run_manifest.json`.
 
 ## Operating principles
 
-1. **Clarify before acting.** No production edit before the user has
-   confirmed the objective, the success criterion, and your assumptions at
-   the Agree checkpoint.
-2. **No silent assumptions.** Every dimension you did not ask about becomes
-   a written, risk-labeled assumption the user sees before work starts.
-   High-risk unknowns are asked directly, never guessed.
-3. **Evidence over belief.** Recon before questions - never ask what the
-   repo can answer. Verify-command output before "done" - quoted numbers
-   and log lines, never paraphrase, never a model's or platform's
-   self-report.
-4. **Proportional ceremony.** Scale process weight to task risk. The shared
-   tier definitions live in the Tier check below - small missions get
-   zero-question clarify and a skipped plan gate; high-risk missions earn
-   extra design scrutiny. Never skip, at any size: clarification when facts
-   are missing, the Agree checkpoint, the journal, subgoal review, and the
-   final gate.
+1. **Plan before delegation.** The controller first produces a dependency DAG
+   and has a fresh reviewer attack it. Do not use agents to substitute for a
+   plan.
+2. **Only independent work fans out.** A run may use **0 through 10** executor
+   workers. The number follows the ready, non-overlapping nodes in the DAG;
+   it is never a quota or a minimum. Serial work stays with the controller.
+3. **Evidence over belief.** Recon before questions; concrete command output,
+   artifact identifiers, and current diffs before "done." Agent narration is
+   never verification evidence.
+4. **One owner per writable surface.** A delegated write task receives its
+   own worktree and a narrow path contract. Shared files, lockfiles,
+   generated artifacts, conflict resolution, and integration belong to the
+   controller.
+5. **Named roles and observed runtime.** Use
+   `supergoal_luna_executor` (write), `supergoal_researcher` (read-only), and
+   `supergoal_reviewer` (read-only) by name. Their requested model and effort,
+   plus the controller's, come from `config/model-profile.toml`; a role card is
+   intent. Record the actual role, model, and effort when the runtime exposes
+   them. If named binding or runtime evidence is unavailable, do not claim it
+   occurred. There is no `discussor` role: the reviewer owns plan discussion
+   and final review.
+6. **Proportional ceremony.** Research is optional and follows uncertainty,
+   not a ritual. A small deterministic fix can use no subagents; an uncertain
+   or high-risk mission earns research, a deeper plan review, or both.
+7. **Fresh integration and review.** A worker result is a candidate change,
+   not completion. The controller integrates in dependency order, runs the
+   full verification surface on the merged state, and a fresh reviewer judges
+   the final allegation.
 
 ## Language
 
 - Reply in the language the user writes in; think and plan in English.
-- All `.supergoal/` state files are written in English.
+- Keep `.supergoal/` state files in English.
 - Never translate code, identifiers, paths, commands, logs, or quoted errors.
 
 ## Reference playbooks
 
-Deep detail lives next to this file; read each when its phase begins:
+Read the matching playbook when its phase begins:
 
-- `references/clarify.md` - recon checklist, question waves, assumption
-  ledger, Agree message template (Clarify + Agree)
-- `references/loop-daor.md` - DAOR discipline, stop rules, evidence ladder (Loop)
-- `references/adversarial-review.md` - review gates, tiering, verdict protocol (Loop + Gate)
-- `references/super-agent-cluster.md` - the 10-agent design harness for
-  standard/high-risk missions: research, claims, design loop, gates (Cluster)
-- `references/ml-experiment.md` - datasets, baselines, runs, ablations,
-  research design contract (any training or mechanism-research task)
-- `references/lifecycle.md` - project layer: backlog, archive, next mission (Next)
-- `references/codex.md` - required Codex wiring: /goal, Stop hook, custom agents, config (Setup)
+- `references/clarify.md` — recon, questions, assumption ledger, Agree.
+- `references/super-agent-cluster.md` — dependency DAG, packets, manifest,
+  optional research, worktree fan-out, barrier, and integration.
+- `references/loop-daor.md` — falsifiable Design–Act–Observe–Reason cycles
+  and evidence discipline.
+- `references/adversarial-review.md` — plan, subgoal, and final review gates.
+- `references/ml-experiment.md` — datasets, baselines, runs, and mechanism
+  research.
+- `references/lifecycle.md` — archive, reopen, backlog, and lessons.
+- `references/codex.md` — goals, named agents, config, hooks, and strict-mode
+  caveats.
 
 ## Router
 
-Run Setup as an idempotent preflight on every `$supergoal` invocation, then
-route by durable state on disk, never by chat memory:
+Run Setup idempotently for every `$supergoal` invocation, then route from
+durable state on disk rather than chat memory:
 
-- No `.supergoal/` directory: Setup, then Recon, then a tier check (below),
-  then Clarify, Agree, Loop, Close in order for every tier. Standard and
-  high-risk missions open the Loop with the design phase - research, design
-  draft, reviewer debate, final inspection - before any implementation cycle
-  (`references/super-agent-cluster.md`). Gate is not its own sequential step:
-  the plan gate runs before the first implementation cycle, a subgoal gate
-  runs inside every cycle, and the final gate runs right before Close
-  (`references/adversarial-review.md`).
-- `.supergoal/` exists and the mission is open (an incomplete phase remains):
-  read `BRIEF.md`, `PLAN.md`, the tail of `JOURNAL.md` (and `EXPERIMENTS.md`
-  if present); summarize the current state in at most 5 lines; resume at the
-  first incomplete phase. If the user brings different work instead of the
-  open mission, park or backlog it (`references/lifecycle.md`) - never
-  silently mix two missions in one plan.
-- `.supergoal/` exists and the mission is closed (`PLAN.md` has a checked
-  `FINAL` backed by a `## FINAL GATE` section logging `review: PASS`): a
-  clean completed state is an archive point, not a failure. Never auto-resume
-  the loop. New work enters through Next.
-- User asks only for review or audit of prior SuperGoal work (`.supergoal/`
-  exists, open or closed): run the gate that matches what changed since the
-  last one - subgoal or final. A bare review request with no `.supergoal/`
-  state has no contract to check it against; treat it as a new mission and
-  start at Recon/Clarify instead.
+- **No `.supergoal/` directory:** Setup → Recon → Clarify → Agree → Plan →
+  Execute → Integrate → Gate → Close.
+- **Open mission:** read `BRIEF.md`, `PLAN.md`, `run_manifest.json`, and the
+  tail of `JOURNAL.md`; summarize the actual phase in at most five lines and
+  resume the first incomplete manifest step. Do not mix a new task into an
+  open mission.
+- **Closed mission:** archive is an endpoint, not a failure. Route new work
+  through Next (`references/lifecycle.md`).
+- **Review-only request:** use the matching plan, subgoal, or final gate
+  against the current manifest and diff. A bare review without state is a new
+  mission.
 
-## Setup preflight (every invocation)
+## Setup preflight
 
-1. Create the mission state area immediately in the current project root
-   (git top-level when available, otherwise the invocation cwd), without
-   asking: `.supergoal/`, `.supergoal/tmp/`, and `.supergoal/.gitignore`
-   containing `tmp/`. Never edit the repo's root `.gitignore`. Whether
-   `.supergoal/` gets committed is the user's choice; the skill never stages
-   or commits it on its own.
-2. Install required Codex wiring immediately and idempotently (steps,
-   platform selection, and the hook self-test in `references/codex.md`): the
-   Stop hook, the experimental SubagentStop hook, all ten custom agents, and
-   config defaults. Only touch `.codex/` files needed for SuperGoal; merge
-   existing files, never overwrite unrelated hooks, agents, or config. If
-   `.codex/agents/` already contains an unrelated agent under one of
-   SuperGoal's names, stop Setup and report the collision - never
-   silently replace it. This has no dependency on goals being enabled, so
-   it always completes.
-3. Verify `/goal` is available before Clarify. If it is not available, stop
-   and tell the user to enable Codex goals (`codex features enable goals` or
-   merge `config/config.toml.snippet`) before running SuperGoal.
-4. Inventory the tooling actually available this session: configured MCP
-   servers (`/mcp`) and sibling skills (list `~/.codex/skills/` and
-   `<repo>/.codex/skills/`). Keep the inventory in context for the routing
-   map in Subagents, MCP, and sibling skills below, and record durable
-   entries in `PROJECT.md`'s Environment section so later missions skip the
-   rediscovery. Never fabricate access to a tool this step did not find.
+1. Create `.supergoal/`, `.supergoal/tmp/`, and `.supergoal/.gitignore`
+   containing `tmp/` in the project root. Never edit the repository root
+   `.gitignore`; do not stage or commit state on the user's behalf.
+2. Install only the SuperGoal wiring needed for this run, merging rather than
+   replacing existing `.codex/` configuration. Copy the three namespaced role
+   cards and stop on a same-name collision with an unrelated card. Install the
+   completion-audit hook according to `references/codex.md`; it is an
+   advisory challenge, not a security boundary.
+   `config/model-profile.toml` is the sole place to choose role models and
+   reasoning effort; after it changes, run
+   `python3 hooks/sync_model_profile.py --write`, then
+   `python3 hooks/sync_model_profile.py --check --catalog-check` before
+   installation. The latter checks the active local model catalog; the former
+   checks generated plugin assets only.
+3. Verify that `/goal` is available. If it is not, ask the user to enable
+   Goals before creating the mission contract. Do not silently replace a
+   durable goal with prose.
+4. Record the active controller model/effort and available concurrency as
+   observations in the manifest. A configuration key is a requested limit,
+   not runtime proof.
+5. Inventory actually available tools and skills. Use the best available
+   source of truth; never invent access to a browser, MCP server, or service.
 
-## Recon (before any question)
+## Recon, tiering, and Clarify
 
-A quick, read-only pass over the target project - minutes, not hours:
-stack and entry points, build/test/eval commands, CI config, repo layout,
-version pins, prior art (branches, TODOs, related issues). Delegate it to
-the `explorer` subagent; the main thread may recon inline only for small
-missions. Purpose: ground every question in observed fact and kill questions
-the repo already answers. Deeper evidence (docs via MCP, upstream issues,
-papers) belongs inside the Loop, following the evidence ladder in
-`references/loop-daor.md`.
+Run a short read-only recon before asking questions: entry points, test and
+build commands, CI, versions, relevant history, protected paths, and existing
+evidence. Delegate reconnaissance to `supergoal_researcher` only when it is
+independent enough to save time; otherwise do it inline.
 
-## Tier check (once, right after Recon)
+Classify the mission once after recon:
 
-The canonical tier definitions - every other file points here:
+- **Small:** narrow, deterministic, and single-purpose. It may need zero
+  workers and a light plan review.
+- **Standard:** normal engineering work with several dependencies or a
+  meaningful regression surface.
+- **High-risk:** protected data/paths, irreversible side effects, weak test
+  coverage, unclear external facts, security/privacy/billing impact, or an ML
+  metric. It needs an explicit risk treatment and a stronger plan review.
 
-- **Small**: the expected diff is small and single-purpose, the verify
-  command is deterministic, and no ML metric is involved. The design phase
-  never runs.
-- **High-risk**: any of - protected paths or data are in scope; actions are
-  irreversible or hard to reverse (migrations, deletes, external
-  side-effects); an ML metric is the success criterion; the code area is
-  unfamiliar with weak test coverage. Consequences: the Loop opens with the
-  design phase at a minimum of 2 debate rounds, and the default iteration
-  leash is 5 cycles (`references/clarify.md`).
-- **Standard**: everything else. The Loop opens with the design phase at a
-  minimum of 1 debate round.
+Read `references/clarify.md`. Ask only questions whose answers change scope,
+risk, or verification. The success criterion and budget must be explicit or
+shown as a confirmable default. All other unknowns enter an assumption ledger.
 
-Recon mostly answers this; it is a judgment, not a question charged against
-Clarify's budget - but not a silent one. Create `.supergoal/JOURNAL.md` at
-Tier if it does not yet exist (Agree has not run), log a `## TIER` note
-answering the criteria, and carry the tier plus its estimated design cost
-(design cycles, research scale) as a line in the Agree contract, so the user
-approves the spend before any of it happens. The design phase itself is
-`references/super-agent-cluster.md`'s route, entered at the start of the
-Loop - after Agree, under the contract. After design, a hard re-Agree fires
-when success criterion, mechanism claim, or budget/blast-radius moved
-(`references/super-agent-cluster.md`).
+At Agree, obtain one clean `go` for:
 
-## Clarify
+- objective, non-goals, boundaries, and success criterion;
+- source of truth and verification commands;
+- budget (DAOR cycles, research, worker count/cost, wall-clock, and ML limits
+  where applicable);
+- risk level, protected paths, worktree policy, and blocked-stop condition;
+- a provisional plan sketch. The executable DAG is validated immediately
+  afterward and any material contract delta returns to Agree.
 
-Read `references/clarify.md`. Turn the fuzzy goal into a contractable
-objective with the fewest questions that actually matter:
+## Durable goal and state
 
-- Every question cites what recon found and offers 2-4 lettered options plus
-  "describe your own", recommended option first with its reason.
-- Batch up to 3 independent questions per message; ask serially only when an
-  answer would reshape the next question. At most 2 waves, at most 5
-  questions total. If the request is already precise, ask nothing.
-- Two answers are mandatory and may never stay implicit: the **success
-  criterion** (exact command, metric, threshold) and the **iteration budget**
-  (max DAOR cycles before a check-in; ML adds GPU-hours and full-run caps).
-  Ask, or state an inferred default for confirmation at Agree.
-- Everything you did not ask becomes a ledger entry: assumption + risk label.
-  High-risk assumptions must be converted into questions; low-risk ones are
-  listed at Agree for one-shot confirmation.
-- If the goal is project-sized, carve out the first bounded mission and file
-  the rest in `.supergoal/BACKLOG.md` (see `references/lifecycle.md`).
+On `go`, write `PLAN.md`, `BRIEF.md`, and a new
+`.supergoal/run_manifest.json`; then create one top-level `/goal` from the
+same contract. The goal should name the objective, verification surface,
+constraints, budget, and blocked-stop behavior. It should not promise a
+worker count or a model assignment that the runtime has not demonstrated.
 
-## Agree (the one consent checkpoint)
+`run_manifest.json` is the **single machine-readable operational contract**.
+Human-readable files explain decisions and evidence; hooks and tooling must
+not invent a competing Markdown protocol. The manifest records the initial
+base snapshot, observed controller runtime evidence, DAG, optional research,
+task packets/results, integration, review, and final verification. Per-task
+base SHAs may advance after an integration wave; they are not required to
+repeat the initial run SHA. See
+`references/run-manifest.example.json` for the concrete schema and
+`references/super-agent-cluster.md` for its lifecycle.
 
-Compose ONE message containing: the objective in one line, the success
-criterion, a subgoal sketch, boundaries and constraints, the assumption
-ledger, the tier with its estimated design cost (standard/high-risk), the
-budget, and the blocked-stop condition. The user replies "go" or
-corrects any line; any other reply (a question, "go but also X", refusal) is
-continued Clarify - scope additions route through the scope test, and
-nothing starts until a clean "go" or corrected lines. Do not start the Loop
-before they answer - this message is the consent checkpoint for the whole
-mission and replaces any separate plan/contract confirmations. One "go"
-approves both the scope and the spend; nothing autonomous and expensive runs
-before it.
+## Plan and optional research
 
-On "go": write `.supergoal/PLAN.md` first, then `.supergoal/BRIEF.md` (template in
-`references/clarify.md`) - PLAN.md is mechanically re-derivable, so this
-order is crash-safe and the Stop hook treats BRIEF-without-PLAN as a broken
-state. For standard/high-risk tiers the initial plan is design-first: an
-unprefixed `- [ ] DESIGN: ...` line plus FINAL, with the implementation
-subgoals derived from the inspected design once the design phase completes
-(`references/super-agent-cluster.md` has the exact seed plan and derivation).
-Every subgoal is a checkbox with a machine-checkable done condition:
+Before an implementation worker starts:
+
+1. The controller writes a dependency DAG. Each node has one outcome,
+   owner, allowed and forbidden paths, prerequisites, worktree policy,
+   verification command, and result requirement.
+2. Run research only when uncertainty can change a technical choice, safety
+   decision, or plan edge. Use `supergoal_researcher` for a bounded,
+   read-only question with sources, findings, confidence, and gaps. Academic
+   and engineering-trend lanes are available, but neither is mandatory.
+3. Have `supergoal_reviewer` review the plan or high-risk assumptions with a
+   fresh context. A `FAIL`, missing verification, shared writable path, or
+   cycle in the DAG keeps execution closed.
+4. Persist the accepted graph and task packets in the manifest. A plan may
+   have zero ready worker nodes; that is a valid outcome.
+
+## Delegation and integration
+
+For each independent ready node, choose at most one named
+`supergoal_luna_executor`. Spawn only up to the currently available capacity,
+with no more than ten direct manifest task records in the entire run (including
+researcher records). Do not create filler work to reach a target count.
+
+Every executor packet must include:
 
 ```text
-- [ ] SG1: <outcome> | verify: `<command>` | done-when: <observable criterion>
+- run/task ID and current base SHA
+- named role, requested model/effort, and runtime evidence requirement
+- one bounded outcome and DAG prerequisites
+- assigned worktree and allowed paths
+- forbidden paths/actions, including shared integration surfaces
+- exact verification command and expected result
+- return schema: changed files, result summary, command output, artifact/hash,
+  blockers, and proposed integration order
 ```
 
-Rules: order by dependency and information value (riskiest first); ML
-projects start with dataset analysis and a reproducible baseline before any
-model change (`references/ml-experiment.md`); mark blocked items
-`- [!] <reason>` instead of deleting them. The last line of PLAN.md is
-always:
+Workers may read the relevant repository state and modify only their assigned
+worktree. A sandbox setting or depth limit is a useful control but not proof
+of isolation. The controller checks the actual result, path scope, and base
+SHA before accepting it. If a worker cannot demonstrate the requested named
+role/model/effort where the runtime exposes those fields, mark the task
+`blocked` with a `runtime-unverified` reason; do not relabel it successful.
 
-```text
-- [ ] FINAL: adversarial final gate returned PASS (verdict logged in JOURNAL)
-```
+The controller waits at a barrier for the selected wave's terminal results,
+then:
 
-Checkboxes are claims that the Stop hook cross-checks against JOURNAL.md:
-a checked `SG<n>` needs a journal section whose header names that SG and
-whose body logs `review: PASS`; a checked FINAL needs a `## FINAL GATE`
-section with `review: PASS`. Never check first and review later.
+1. accepts/rejects each result against its manifest packet;
+2. integrates accepted changes in topological order, resolving conflicts as
+   the task owner rather than asking peers to edit shared files;
+3. updates the base SHA and revalidates downstream readiness after every
+   integration;
+4. runs the complete verification surface on the merged workspace;
+5. sends the current merged result, rather than a worker's self-report, to a
+   fresh `supergoal_reviewer` for final review.
 
-After "go", create one top-level `/goal` from the same contract (template in
-`references/codex.md`) before the first DAOR cycle. Do not silently degrade
-the mission contract to a plain instruction.
+If the DAG has more than ten ready nodes, run bounded waves and recompute
+readiness after each integration. If it has fewer, use fewer. If any result
+is blocked, failed, out of scope, or stale, record the reason and return to
+planning/DAOR or a user checkpoint.
 
-## Loop - design phase, then DAOR cycles
+## DAOR execution discipline
 
-Read `references/loop-daor.md` before the first cycle. Standard and
-high-risk missions open the Loop with the design phase
-(`references/super-agent-cluster.md`): `researcher` builds the source
-register and distills it into cited claims, `designer` drafts the design and
-its verification plan, four differentiated reviewers debate it (bounded
-rounds, `synthesizer` adjudicating any REVISE), and `reviewer` (design mode)
-runs an independent final inspection - all journaled, all under the
-contract's design budget, file-backed in RESEARCH/DESIGN/DEBATE.md and
-resumable at any step. On `implementation-ready: yes` the implementation
-subgoals are derived into PLAN.md; hard re-Agree runs if success criterion,
-mechanism claim, or budget/blast-radius moved; then the plan gate attacks
-the derived plan (see Gate). Small missions skip straight to the cycles.
+Read `references/loop-daor.md` before the first change. Every subgoal—whether
+the controller executes it or an executor owns it—uses a falsifiable cycle:
 
-The first implementation cycle is Observe-0: run the baseline eval and
-record baseline metrics before any change (greenfield: the failing or absent
-result is the baseline). Then repeat, one subgoal at a time, one cycle at a
-time:
+1. **Design:** one hypothesis, one variable, verification command, expected
+   result, and failure criterion.
+2. **Act:** make the smallest change that tests that hypothesis. For ML, run a
+   smoke test before a full run.
+3. **Observe:** capture real command output, artifacts, and metrics.
+4. **Reason:** mark the hypothesis supported, refuted, or inconclusive and
+   decide the next DAG change.
 
-1. **Design** (per-cycle hypothesis, not the cluster design phase) -
-   falsifiable hypothesis: the bottleneck, the single variable to change,
-   the verify command, the expected result, the failure criterion. No
-   falsifiable expectation, no action.
-2. **Act** - implement that one change. ML: smoke-test first (small subset,
-   few steps, low resolution) before any full training run; record
-   checkpoint and resume info for long runs.
-3. **Observe** - read actual outputs only: test results, training and eval
-   logs, metric files, sample artifacts. Quote real numbers and lines into
-   the ledger; never paraphrase from memory.
-4. **Reason** - compare expected vs actual; verdict: supported, refuted, or
-   inconclusive; decide continue, pivot, or stop.
+Append evidence to `JOURNAL.md`; update the manifest with the corresponding
+task and verification state. Do not check a `PLAN.md` item before its review
+gate passes.
 
-After every cycle: append one 4-field entry (design/act/observe/reason) to
-`.supergoal/JOURNAL.md`; update PLAN.md checkboxes; checkpoint the green state
-(a small commit only if the user opted in at Agree, otherwise a journal
-note); ML runs also get a row in `.supergoal/EXPERIMENTS.md` (verdict PENDING
-until concluded with evidence).
+Stop for a user checkpoint when the agreed budget is exhausted, three cycles
+make no progress, the same root cause has failed twice, an irreversible or
+protected action is needed, the evaluation is unreliable, or a product,
+security, privacy, or billing decision remains unresolved.
 
-Mid-mission discoveries pass a scope test before they change anything: if
-the idea serves the current success criterion, add it as a new unchecked
-`SG` before `FINAL`; otherwise record it in `.supergoal/BACKLOG.md` and stay on
-the current subgoal. An ever-growing PLAN never closes.
+## Gates and Close
 
-Stop rules (any one pauses the loop for a user checkpoint): success criteria
-met; cycle budget reached; three consecutive non-improving cycles; the same
-root cause failing twice (hard rule 4); GPU or run budget exhausted;
-protected path or destructive action needed; the eval itself is unreliable;
-any product, security, privacy, or billing decision (full list in
-`references/loop-daor.md`).
+Read `references/adversarial-review.md`.
 
-## Gate - adversarial review
+- **Plan gate:** required for standard/high-risk work and any changed DAG;
+  light but explicit for small work.
+- **Subgoal gate:** before checking a claim, a fresh reviewer attacks its
+  evidence and current diff.
+- **Final gate:** after controller integration and full verification, a fresh
+  reviewer audits the whole claim against the current base/merged snapshot.
 
-Read `references/adversarial-review.md`. Every completion claim gets a
-logged review verdict before its PLAN box is checked:
+A PASS applies only to the named current snapshot. A later change, FAIL, or
+CANNOT-VERIFY invalidates it. The controller logs verdicts verbatim; only the
+user may override a reviewer failure.
 
-- Plan gate: for standard and high-risk missions, the reviewer attacks the
-  derived implementation plan against the Agree contract, after the design
-  phase and before the first implementation cycle - wrong problem,
-  unverifiable or gameable success criterion, riskiest subgoal not first.
-  Verdict logged as a `## PLAN GATE` journal section with
-  `plan-review: GO | REVISE | SKIPPED` (never `review: PASS` - that string
-  is completion evidence to the Stop hook). Small missions may skip it with
-  the SKIPPED note.
-- Subgoal gate: when a subgoal claims done. Required reviewer is the
-  `reviewer` subagent (read-only, separate context). A checked PLAN box needs
-  the reviewer verdict logged in JOURNAL; self-review is not a substitute.
-- Final gate: before Close, the reviewer audits the whole plan, ledger, and
-  diff in an isolated context.
+At Close, rerun all relevant verification commands, ensure every manifest task
+is accepted as `complete` or `skipped` and accounted for, verify the final
+merged snapshot, record the
+fresh reviewer verdict, and only then check `FINAL`. The Stop hook may
+challenge an unsupported stop once; treat the challenge as a repair request,
+not an unbypassable enforcement guarantee. Report objective, evidence, files,
+tests, reviewer verdict, risks, and blockers in the user's language.
 
-The reviewer's stance is adversarial: actively construct counterexamples.
-Verdicts: PASS, FAIL (with a minimal counterexample), CANNOT-VERIFY (names
-the exact missing evidence). Record every verdict in JOURNAL.md. FAIL
-reopens the subgoal; only the user can override a FAIL, explicitly.
+## Local, version-pinned v2 experiment (not a default)
 
-## Close
+The default is adaptive/native execution. The repository retains a v2 profile
+only for a local, version-pinned compatibility investigation; its keys are not
+part of the public portable configuration contract. The recorded Codex 0.144.0
+named-role canary failed, so do not select or recommend this profile without a
+new same-version, same-surface canary.
 
-Never declare done from belief. For each PLAN.md subgoal: re-run its verify
-command (or cite its logged output) and only then check the box.
-`EXPERIMENTS.md` must contain no PENDING rows. Check the FINAL line only
-after the reviewer's PASS is logged as a `## FINAL GATE` section in
-JOURNAL.md. The required Stop hook enforces all of it mechanically at session
-end - audit before you stop. The hook nudges once per stop attempt (the
-platform forbids blocking loops): treat its block as a hard instruction, not
-an obstacle - the second stop passes, and pushing past the nudge is exactly
-the shallow-completion failure this skill exists to prevent.
-
-Then: delete scratch artifacts (temporary files belong only in
-`.supergoal/tmp/`); run `git status --short` and account for every changed or
-untracked file; run the lessons consolidation pass on `.supergoal/PROJECT.md` -
-mandatory whenever the mission had a refuted cycle, a hard-rule-4 event, or
-a reopen: each lands in or updates its root's `L-` entry per
-`references/lifecycle.md`, merged and superseded in place, never
-bare-appended. Distill standing facts too (eval commands, environment
-quirks, stable boundaries) and file spotted ideas in `.supergoal/BACKLOG.md` -
-durable facts, not a transcript. Final report in the user's language: objective,
-subgoals completed with evidence, files changed, eval results, reviewer
-verdicts, cleanup performed, remaining risks, and which stop rule ended the
-loop.
-
-## Next (the project continues)
-
-Read `references/lifecycle.md`. Reached from the router's closed-mission
-branch. Classify the new work before touching anything - every idea has
-exactly one home:
-
-- **New mission** (default): new outcome, success criterion, or budget.
-  Archive the completed root files to `.supergoal/archive/<YYYYMMDD>-<slug>/`,
-  create fresh ones, and run a compact Clarify pre-filled from `PROJECT.md`:
-  ask only the two mandatory pins; state everything else as confirmable
-  inference. Prefer a fresh thread; `/goal clear` in-thread is the fallback
-  when staying in the same thread.
-- **Reopen** (defect against the previous mission's success criterion):
-  append `## REOPEN <ISO-date>` to `JOURNAL.md`, add a new unchecked `SG`
-  before `FINAL`, and **uncheck `FINAL`** - the old gate does not cover new
-  work.
-- **Backlog** (not ready to execute): record in `.supergoal/BACKLOG.md`, touch
-  nothing else.
-
-If the current mission is still open but superseded by urgent work, park it:
-mark remaining subgoals `- [!] parked: superseded by <slug>`, archive as
-`-PARKED`, log a `## PARK` entry, then intake the new mission.
-
-Archiving is not optional tidiness: the Stop hook validates a checked
-`SG<n>` against any journal section naming it, so two missions sharing one
-`JOURNAL.md` would cross-validate each other's boxes. One active mission per
-root state, always.
-
-## Hard rules
-
-1. Contract first: no work without the Agree checkpoint answered; no action
-   without a falsifiable expectation.
-2. No silent assumptions: high-risk unknowns are asked; every inference is
-   written into the ledger and confirmed at Agree.
-3. Evidence-based completion: a claim without verify-command output is not
-   done; "looks better" is not a metric.
-4. First-principles rule: if the same root cause survives two patch
-   attempts, STOP patching - this is one of the Loop stop rules: pause for a
-   user checkpoint. Before raising it, re-derive the problem from first
-   principles - re-read the paper, docs, and source; re-model the design;
-   write the new understanding into BRIEF.md - so the checkpoint presents a
-   diagnosis and a proposed redesign, not just a dead end. Implement the
-   redesign only after the user confirms it. A third patch on the same root
-   cause without that confirmation is forbidden.
-5. No placeholder or stub implementations; no redundant tests or dead
-   files - delete what the task does not need.
+If an operator explicitly runs such an experiment, do not combine its session
+capacity key with `agents.max_threads`, do not infer an exact worker count from
+that capacity, and record actual role, model, effort, parent, timing, and
+worker-count observations. For a hard cross-surface contract—one manager plus
+exactly N specified workers—use separately configured Codex sessions or an
+Agents SDK orchestrator instead of `/goal` or a role card alone.
 
 ## State files
 
-Active mission (one at a time; the Stop hook reads these):
+Active mission:
 
-- `.supergoal/BRIEF.md` - intent: objective, boundaries, success criterion,
-  assumption ledger, evidence notes.
-- `.supergoal/PLAN.md` - claims: subgoal checklist (machine-read by the hook).
-- `.supergoal/JOURNAL.md` - evidence: append-only DAOR ledger, one entry per
-  cycle, plus review verdicts.
-- `.supergoal/EXPERIMENTS.md` - ML run ledger (only for tasks with runs).
-- `.supergoal/tmp/` - the only place for scratch files.
+- `.supergoal/BRIEF.md` — agreed objective, boundaries, success criterion,
+  assumptions, and budget.
+- `.supergoal/PLAN.md` — human-readable subgoal checklist and completion
+  claims.
+- `.supergoal/JOURNAL.md` — append-only DAOR evidence and review verdicts.
+- `.supergoal/run_manifest.json` — authoritative machine-readable run state.
+- `.supergoal/RESEARCH.md` — optional sourced findings and explicit gaps.
+- `.supergoal/EXPERIMENTS.md` — ML run ledger when applicable.
+- `.supergoal/tmp/` — disposable scratch only.
 
-Standard/high-risk missions add three design-phase files (formats and
-writers in `references/super-agent-cluster.md`); they archive with the
-mission: `.supergoal/RESEARCH.md` (source register + distilled claims),
-`.supergoal/DESIGN.md` (versioned drafts, verification plan, final inspection),
-`.supergoal/DEBATE.md` (round-by-round objections and synthesis).
+Project layer:
 
-Project layer (spans missions; created lazily on first use; the hook
-ignores these):
+- `.supergoal/PROJECT.md` — concise standing facts and synthesized lessons.
+- `.supergoal/BACKLOG.md` — future ideas, not committed work.
+- `.supergoal/archive/<YYYYMMDD>-<slug>/` — completed or parked missions.
 
-- `.supergoal/BACKLOG.md` - uncommitted future ideas; no checkboxes, so the
-  hook never enforces them.
-- `.supergoal/PROJECT.md` - standing defaults plus clustered `L-` lessons
-  (consolidation rules in `references/lifecycle.md`); read at new-mission
-  intake and checked at each cycle's Design step.
-- `.supergoal/archive/<YYYYMMDD>-<slug>/` - completed or parked missions;
-  evidence history, not active work.
+## Hard rules
+
+1. No production change before Agree and a validated plan.
+2. No fan-out unless tasks are independent, packeted, and have a clear owner.
+3. No completion claim without current verification output and a fresh reviewer
+   verdict.
+4. After two failed attempts on the same root cause, stop patching, re-derive
+   the problem from first principles, and request a user decision before a
+   third attempt.
+5. No placeholder implementation, fabricated source, silent scope expansion,
+   or generic-worker claim masquerading as a named role.
 
 ## Subagents, MCP, and sibling skills
 
-The main thread is always the scheduler and owns every decision, every gate
-verdict, and all writes to `BRIEF/PLAN/JOURNAL/EXPERIMENTS`. Subagents never
-spawn subagents (`max_depth = 1`), never message the user, and never read chat
-history - their work packet plus the named `.supergoal/` files are their whole
-world.
+The controller owns user communication, the DAG, manifest updates, shared
+state, integration, and completion decisions. Subagents receive a bounded
+packet, never message the user, and should not spawn children. This is a
+workflow rule, not proof that platform depth controls will stop a descendant.
 
-Which agents run is tier-gated: every mission uses `explorer` (read-only
-mapping), `worker` (rare scoped delegated edits - parallel execution is a
-separate worktree-and-thread mode, `references/codex.md`, not a worker
-feature), and `reviewer` (review gates); standard/high-risk missions
-additionally run the seven cluster agents (`researcher`, `designer`, the
-four debate reviewers, `synthesizer`) - roles, write scopes, and the
-collaboration contract are in `references/super-agent-cluster.md`.
+Use `supergoal_researcher` only for independent read-only evidence tasks;
+use `supergoal_luna_executor` only for packeted write tasks; use
+`supergoal_reviewer` for isolated plan, subgoal, and final attacks. Do not
+shadow Codex built-ins such as `worker` or `explorer`.
 
-Write discipline: read-only agents (all reviewers, `explorer`) return bounded
-text the main thread records; the bulk-writer agents (`researcher`,
-`designer`, `synthesizer`) plus `worker` are `workspace-write`, each scoped
-to its own `.supergoal/` files plus `.supergoal/tmp/`. A `SubagentStop` hook
-enforces that scope mechanically where available (experimental; the
-scheduler's `--audit` run of the same script is the fallback -
-`references/super-agent-cluster.md`, Scheduler duties).
-
-Tool routing: use the best tool Setup's inventory actually found, not the
-bare-hands default. By capability, with examples of servers commonly filling
-them:
-
-- **Semantic code navigation** (e.g. serena): prefer over raw grep for
-  symbol-level reading during Recon and inside DAOR cycles; `explorer`'s
-  packet should name it when available.
-- **Repo and library knowledge** (e.g. deepwiki, context7, official-docs
-  servers): the preferred source for evidence-ladder levels 2-3 and for
-  `researcher`'s F1/F2 families - an MCP answer with a citation beats a raw
-  web search.
-- **Data systems and issue trackers**: external ground truth for Observe
-  evidence and regression context.
-- **Sibling skills** (e.g. a coding-discipline skill like ponytail, a
-  domain playbook): a skill is instructions, not a callable tool - when the
-  inventory finds one whose charter matches the work, read its SKILL.md at
-  the phase it serves (discipline skills before Act; review skills folded
-  into the reviewer packet as extra checklist input). Never let a sibling
-  skill override this file's gates or stop rules; on conflict, this file
-  wins and the conflict is noted in the journal.
-
-Rules: capability discovery happens once at Setup (step 4), not
-mid-improvisation; never fabricate access; a tool the inventory did not
-find does not exist. These tools improve evidence quality - they never
-substitute for verification (an MCP answer is still ladder 2-3 evidence,
-not a passed verify command).
+Prefer configured MCP tools and official sources for external facts, and read
+an available sibling skill when its charter applies. Tools improve evidence;
+they do not replace the verification command or reviewer gate.
